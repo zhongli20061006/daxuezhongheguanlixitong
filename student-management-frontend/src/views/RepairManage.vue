@@ -1,0 +1,73 @@
+<template>
+  <div style="padding:20px">
+    <h2 style="margin-bottom:16px">报修管理</h2>
+    <div style="display:flex;gap:12px;margin-bottom:12px">
+      <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="fetchRepairs">
+        <el-option v-for="s in statuses" :key="s" :label="s" :value="s" />
+      </el-select>
+      <el-select v-model="typeFilter" placeholder="类型筛选" clearable @change="fetchRepairs">
+        <el-option v-for="t in types" :key="t" :label="t" :value="t" />
+      </el-select>
+    </div>
+    <el-table :data="repairs" v-loading="loading" stripe>
+      <el-table-column prop="id" label="编号" width="60" />
+      <el-table-column prop="user_id" label="报修人" width="100" />
+      <el-table-column label="类型" width="100">
+        <template #default="{row}"><el-tag size="small">{{ row.type }}</el-tag></template>
+      </el-table-column>
+      <el-table-column prop="location" label="地点" width="120" />
+      <el-table-column prop="description" label="描述" show-overflow-tooltip />
+      <el-table-column label="状态" width="100">
+        <template #default="{row}"><el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag></template>
+      </el-table-column>
+      <el-table-column prop="submit_time" label="提交时间" width="160" />
+      <el-table-column label="操作" width="160" fixed="right">
+        <template #default="{row}">
+          <el-button v-if="row.status==='提交'" type="primary" size="small" @click="updateStatus(row.id,'已接单')">接单</el-button>
+          <el-button v-if="row.status==='已接单'" type="warning" size="small" @click="updateStatus(row.id,'处理中')">处理</el-button>
+          <el-button v-if="row.status==='处理中'" type="success" size="small" @click="updateStatus(row.id,'已完成')">完成</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+    <el-empty v-if="!repairs.length && !loading" description="暂无报修" />
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { getRepairs, updateRepairStatus } from '../api/repair'
+
+const statuses = ['提交', '已接单', '处理中', '已完成', '已确认', '已取消']
+const types = ['水电设备', '电子产品', '家具类', '教学用具']
+const repairs = ref([])
+const loading = ref(false)
+const statusFilter = ref('')
+const typeFilter = ref('')
+
+function statusType(v) {
+  const map = { '提交':'info','已接单':'warning','处理中':'','已完成':'success','已确认':'success','已取消':'danger' }
+  return map[v] || 'info'
+}
+
+async function fetchRepairs() {
+  loading.value = true
+  try {
+    const params = {}
+    if (statusFilter.value) params.status = statusFilter.value
+    if (typeFilter.value) params.type = typeFilter.value
+    const res = await getRepairs(params)
+    repairs.value = res.repairs || []
+  } finally { loading.value = false }
+}
+
+async function updateStatus(id, status) {
+  try {
+    await updateRepairStatus(id, status)
+    ElMessage.success('状态更新成功')
+    fetchRepairs()
+  } catch {}
+}
+
+onMounted(fetchRepairs)
+</script>
