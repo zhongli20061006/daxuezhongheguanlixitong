@@ -16,7 +16,7 @@ from app.models import *  # noqa: F403, F401
 
 # 导入所有 API 路由模块
 from app.api import auth, course_selection, classroom, score, repair, schedule, admin
-from app.api import leave, advisor, training_plan, graduation, notification, internal
+from app.api import leave, advisor, training_plan, graduation, notification, internal, profile
 
 # 导入服务层
 from app.services import ws_manager, event_bus, notification_service
@@ -113,6 +113,7 @@ app.include_router(training_plan.router)
 app.include_router(graduation.router)
 app.include_router(notification.router)
 app.include_router(internal.router)
+app.include_router(profile.router)
 
 
 @app.websocket("/ws")

@@ -15,6 +15,7 @@ class Teacher(Base):
     department: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="所属院系")
     title: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="职称，如教授/副教授/讲师")
     is_college_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, comment="是否为学院管理员")
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True, comment="手机号")
 
     # 一个教师可授课多条课表记录
     schedules: Mapped[list["Schedule"]] = relationship(back_populates="teacher")

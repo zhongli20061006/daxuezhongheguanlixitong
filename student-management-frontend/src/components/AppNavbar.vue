@@ -55,9 +55,12 @@
             </div>
           </div>
         </el-popover>
-        <el-tooltip :content="auth.name" placement="bottom">
-          <div class="avatar">{{ auth.name.charAt(0) }}</div>
-        </el-tooltip>
+        <router-link to="/profile">
+          <el-tooltip :content="auth.name" placement="bottom">
+            <div class="avatar">{{ auth.name.charAt(0) }}</div>
+          </el-tooltip>
+        </router-link>
+        <router-link to="/profile" class="logout-btn" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:13px">个人中心</router-link>
         <el-button text class="logout-btn" @click="handleLogout">退出</el-button>
       </div>
     </div>
