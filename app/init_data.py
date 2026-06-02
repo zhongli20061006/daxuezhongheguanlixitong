@@ -23,7 +23,7 @@ from app.models import (
     Teacher, StudentClass, Subject, SubjectType,
     Classroom, Schedule, CourseCapacity,
     UserCredential, UserRole, Student, Staff,
-    SystemConfig,
+    SystemConfig, TrainingPlan, PlanCourse,
 )
 
 
@@ -96,9 +96,9 @@ def init_data():
     with SyncSessionLocal() as db:
         # ===== Step 2: 插入班级（3个）=====
         classes = [
-            StudentClass(name="2024级计算机科学1班", major="计算机科学与技术", grade=2024),
-            StudentClass(name="2024级软件工程1班", major="软件工程", grade=2024),
-            StudentClass(name="2023级计算机科学1班", major="计算机科学与技术", grade=2023),
+            StudentClass(name="2024级计算机科学1班", major="计算机科学与技术", grade=2024, advisor_id=10001),
+            StudentClass(name="2024级软件工程1班", major="软件工程", grade=2024, advisor_id=10005),
+            StudentClass(name="2023级计算机科学1班", major="计算机科学与技术", grade=2023, advisor_id=10002),
         ]
         db.add_all(classes)
         db.flush()  # 立即获取自增 ID，供后续步骤使用（不提交事务）
@@ -106,7 +106,7 @@ def init_data():
         # ===== Step 3: 插入教师（5人）=====
         # 工号作为主键，手工指定 id 而非自增
         teachers = [
-            Teacher(id=10001, name="张伟", job_number="T10001", department="计算机科学学院", title="教授"),
+            Teacher(id=10001, name="张伟", job_number="T10001", department="计算机科学学院", title="教授", is_college_admin=True),
             Teacher(id=10002, name="李娜", job_number="T10002", department="数学学院", title="副教授"),
             Teacher(id=10003, name="王强", job_number="T10003", department="外国语学院", title="讲师"),
             Teacher(id=10004, name="赵敏", job_number="T10004", department="物理学院", title="副教授"),
@@ -288,6 +288,41 @@ def init_data():
             SystemConfig(config_key="drop_deadline", config_value="2024-11-08 18:00:00"),
         ]
         db.add_all(system_configs)
+
+        # ===== Step 9.6: 插入培养方案 =====
+        plan_cs = TrainingPlan(
+            major="计算机科学与技术", grade=2024,
+            total_credits_required=170, elective_credits_required=20,
+        )
+        plan_se = TrainingPlan(
+            major="软件工程", grade=2024,
+            total_credits_required=170, elective_credits_required=20,
+        )
+        db.add_all([plan_cs, plan_se])
+        db.flush()
+
+        # 为CS2024方案添加课程映射
+        plan_courses = []
+        for plan_id in [plan_cs.id, plan_se.id]:
+            courses = [
+                # 必修课
+                {"subject_id": 1, "course_type": "compulsory", "credit": 5.0},
+                {"subject_id": 2, "course_type": "compulsory", "credit": 4.0},
+                {"subject_id": 3, "course_type": "compulsory", "credit": 4.0},
+                {"subject_id": 4, "course_type": "compulsory", "credit": 4.0},
+                # 限选课 — CS_LTD_01（编程方向），至少选2门
+                {"subject_id": 5, "course_type": "limited", "limited_group": "CS_LTD_01", "min_required": 2, "credit": 3.0},
+                {"subject_id": 6, "course_type": "limited", "limited_group": "CS_LTD_01", "min_required": 2, "credit": 3.0},
+                # 限选课 — CS_LTD_02（网络与数据库方向），至少选2门
+                {"subject_id": 7, "course_type": "limited", "limited_group": "CS_LTD_02", "min_required": 2, "credit": 3.0},
+                {"subject_id": 8, "course_type": "limited", "limited_group": "CS_LTD_02", "min_required": 2, "credit": 3.0},
+                # 选修课
+                {"subject_id": 9, "course_type": "elective", "credit": 2.0},
+                {"subject_id": 10, "course_type": "elective", "credit": 1.0},
+            ]
+            for c in courses:
+                plan_courses.append(PlanCourse(plan_id=plan_id, **c))
+        db.add_all(plan_courses)
 
         # 一次性提交所有数据
         db.commit()

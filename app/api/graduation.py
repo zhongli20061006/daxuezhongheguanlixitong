@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import require_role
+from app.deps import require_role, get_current_user
 from app.models.training_plan import TrainingPlan
 from app.models.student import Student
 from app.schemas.training import AuditItem, AuditListResponse
@@ -83,3 +83,40 @@ async def list_audits(
             updated_at=a.updated_at.strftime("%Y-%m-%d %H:%M"),
         ) for a, s, p in rows
     ])
+
+
+@router.get("/my", summary="我的毕业审核结果")
+async def my_audit(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import select
+    from app.models.graduation_audit import GraduationAudit
+    from app.models.student_class import StudentClass
+
+    result = await db.execute(
+        select(GraduationAudit, TrainingPlan, StudentClass)
+        .join(TrainingPlan, GraduationAudit.plan_id == TrainingPlan.id)
+        .join(Student, GraduationAudit.student_id == Student.id)
+        .join(StudentClass, Student.class_id == StudentClass.id)
+        .where(GraduationAudit.student_id == current_user["username"])
+        .order_by(GraduationAudit.updated_at.desc())
+    )
+    rows = result.all()
+    audits = []
+    for a, p, c in rows:
+        audits.append({
+            "id": a.id, "student_id": a.student_id,
+            "major": p.major, "grade": p.grade,
+            "total_credits_earned": float(a.total_credits_earned),
+            "total_credits_required": float(p.total_credits_required),
+            "elective_credits_earned": float(a.elective_credits_earned),
+            "elective_credits_required": float(p.elective_credits_required),
+            "compulsory_passed": a.compulsory_passed,
+            "compulsory_total": a.compulsory_total,
+            "limited_groups_passed": a.limited_groups_passed,
+            "is_graduatable": a.is_graduatable,
+            "detail": a.detail,
+            "updated_at": a.updated_at.strftime("%Y-%m-%d %H:%M"),
+        })
+    return {"audits": audits}

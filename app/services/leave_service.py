@@ -86,6 +86,7 @@ class LeaveService:
         approver_role: str,
         result: str,
         comment: str | None = None,
+        is_college_admin: bool = False,
     ) -> LeaveApplication:
         leave_result = await db.execute(
             select(LeaveApplication).where(LeaveApplication.id == leave_id)
@@ -103,8 +104,8 @@ class LeaveService:
                 raise ValueError("当前审批阶段需要辅导员审批")
         elif leave.status == "审批中(学院)":
             level = 2
-            if approver_role not in ("college", "admin"):
-                raise ValueError("当前审批阶段需要学院审批")
+            if not (is_college_admin or approver_role == "admin"):
+                raise ValueError("当前审批阶段需要学院管理员审批")
         else:
             level = 1
 

@@ -68,10 +68,18 @@ async def approve_leave(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无审批权限")
 
     approver_role = "admin" if role == "admin" else "advisor"
+    is_college_admin = False
+    if role == "teacher":
+        t_result = await db.execute(
+            select(Teacher).where(Teacher.job_number == current_user["username"])
+        )
+        teacher = t_result.scalar_one_or_none()
+        is_college_admin = teacher.is_college_admin if teacher else False
     try:
         leave = await leave_service.approve(
             db, req.leave_id, current_user["username"],
             approver_role, req.result, req.comment,
+            is_college_admin=is_college_admin,
         )
         return {"message": f"审批完成，状态：{leave.status}"}
     except ValueError as e:

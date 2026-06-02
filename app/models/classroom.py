@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from sqlalchemy import String, Integer, Boolean
+from datetime import datetime
+from sqlalchemy import String, Integer, Boolean, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 
 class Classroom(Base):
-    """教室表 — 存储教室基本信息和硬件设施"""
     __tablename__ = "classroom"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="教室ID，自增")
@@ -17,5 +17,21 @@ class Classroom(Base):
     building: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="教学楼名称")
     has_projector: Mapped[bool] = mapped_column(Boolean, default=False, comment="是否有投影仪")
 
-    # 一个教室可有多条课表记录（不同时间不同课程）
     schedules: Mapped[list["Schedule"]] = relationship(back_populates="classroom")
+
+
+class ClassroomReservation(Base):
+    __tablename__ = "classroom_reservation"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="预约ID")
+    classroom_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="教室ID")
+    week: Mapped[int] = mapped_column(Integer, nullable=False, comment="教学周")
+    day_of_week: Mapped[int] = mapped_column(Integer, nullable=False, comment="星期几")
+    period: Mapped[str] = mapped_column(String(10), nullable=False, comment="节次，如1-2")
+    user_id: Mapped[str] = mapped_column(String(20), nullable=False, comment="预约人学号/工号")
+    user_role: Mapped[str] = mapped_column(String(10), nullable=False, comment="预约人角色")
+    reason: Mapped[str] = mapped_column(String(200), nullable=False, comment="预约理由")
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="已预约", comment="已预约/已取消")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False, comment="创建时间"
+    )

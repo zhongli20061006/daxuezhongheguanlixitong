@@ -11,6 +11,7 @@
       <el-menu-item index="/classrooms">空闲教室</el-menu-item>
       <el-menu-item index="/scores">我的成绩</el-menu-item>
       <el-menu-item index="/repairs">报修中心</el-menu-item>
+      <el-menu-item index="/plan">培养方案</el-menu-item>
     </template>
     <template v-if="auth.role === 'teacher'">
       <el-menu-item index="/classrooms">空闲教室</el-menu-item>

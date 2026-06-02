@@ -59,8 +59,110 @@
           </el-table-column>
         </el-table>
       </el-tab-pane>
+      <!-- 培养方案 -->
+      <el-tab-pane label="培养方案" name="plans">
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <el-button type="primary" @click="showPlanDialog">新增方案</el-button>
+        </div>
+        <el-table :data="plans" v-loading="planLoading" stripe @expand-change="onPlanExpand">
+          <el-table-column type="expand">
+            <template #default="{ row }">
+              <div style="padding:8px 20px">
+                <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+                  <span style="font-weight:bold">课程列表</span>
+                  <el-button size="small" type="primary" @click="showAddCourseDialog(row)">添加课程</el-button>
+                </div>
+                <el-table :data="row._courses || []" size="small" border>
+                  <el-table-column prop="subject_name" label="课程名" />
+                  <el-table-column prop="credit" label="学分" width="70" />
+                  <el-table-column label="类型" width="80">
+                    <template #default="{ r }"><el-tag :type="r.course_type==='limited'?'warning':r.course_type==='elective'?'success':''" size="small">{{ typeMap2[r.course_type] }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column prop="limited_group" label="分组" width="120" />
+                  <el-table-column prop="min_required" label="至少选" width="70" />
+                  <el-table-column label="操作" width="80">
+                    <template #default="{ r }">
+                      <el-button size="small" type="danger" @click="deleteCourse(r.id)">删除</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="id" label="ID" width="60" />
+          <el-table-column prop="major" label="专业" />
+          <el-table-column prop="grade" label="年级" width="80" />
+          <el-table-column prop="total_credits_required" label="总学分" width="80" />
+          <el-table-column prop="elective_credits_required" label="选修学分" width="80" />
+        </el-table>
+      </el-tab-pane>
+      <!-- 毕业审核 -->
+      <el-tab-pane label="毕业审核" name="audit">
+        <div style="display:flex;gap:12px;margin-bottom:12px;align-items:center">
+          <el-input v-model="auditMajor" placeholder="专业筛选" style="width:180px" clearable />
+          <el-input-number v-model="auditGrade" placeholder="年级" :min="2000" style="width:120px" />
+          <el-button type="primary" @click="loadAudits">查询</el-button>
+          <el-button type="success" @click="runBatchAudit">批量审核</el-button>
+        </div>
+        <el-table :data="audits" v-loading="auditLoading" stripe>
+          <el-table-column prop="student_id" label="学号" width="110" />
+          <el-table-column prop="student_name" label="姓名" width="90" />
+          <el-table-column prop="major" label="专业" />
+          <el-table-column label="总学分" width="120">
+            <template #default="{ row }">{{ row.total_credits_earned }}/{{ row.total_credits_required }}</template>
+          </el-table-column>
+          <el-table-column label="必修" width="80">
+            <template #default="{ row }">{{ row.compulsory_passed }}/{{ row.compulsory_total }}</template>
+          </el-table-column>
+          <el-table-column label="毕业" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.is_graduatable ? 'success' : 'danger'" size="small">{{ row.is_graduatable ? '可毕业' : '未达标' }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="详情" min-width="150" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.detail || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="100">
+            <template #default="{ row }">
+              <el-button size="small" @click="reauditStudent(row.student_id)">重审</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
     </el-tabs>
-    <!-- 排课弹窗 -->
+    <!-- 培养方案弹窗 -->
+    <el-dialog v-model="planDialogVisible" title="新增培养方案" width="400px">
+      <el-form :model="planForm" label-width="100px">
+        <el-form-item label="专业"><el-input v-model="planForm.major" /></el-form-item>
+        <el-form-item label="年级"><el-input-number v-model="planForm.grade" :min="2000" /></el-form-item>
+        <el-form-item label="总学分"><el-input-number v-model="planForm.total_credits_required" :min="1" :precision="1" /></el-form-item>
+        <el-form-item label="选修学分"><el-input-number v-model="planForm.elective_credits_required" :min="0" :precision="1" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="planDialogVisible=false">取消</el-button>
+        <el-button type="primary" @click="createPlan">保存</el-button>
+      </template>
+    </el-dialog>
+    <!-- 添加课程弹窗 -->
+    <el-dialog v-model="courseDialogVisible" title="添加方案课程" width="400px">
+      <el-form :model="courseForm" label-width="100px">
+        <el-form-item label="科目ID"><el-input-number v-model="courseForm.subject_id" /></el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="courseForm.course_type">
+            <el-option label="必修" value="compulsory" />
+            <el-option label="限选" value="limited" />
+            <el-option label="选修" value="elective" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="学分"><el-input-number v-model="courseForm.credit" :min="0" :precision="1" /></el-form-item>
+        <el-form-item label="限选组"><el-input v-model="courseForm.limited_group" /></el-form-item>
+        <el-form-item label="至少选"><el-input-number v-model="courseForm.min_required" :min="1" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="courseDialogVisible=false">取消</el-button>
+        <el-button type="primary" @click="addCourse">确定</el-button>
+      </template>
+    </el-dialog>
     <el-dialog :title="schEdit.id ? '编辑排课' : '新增排课'" v-model="schDialogVisible" width="500px">
       <el-form :model="schEdit" label-width="80px">
         <el-form-item label="教师ID"><el-input-number v-model="schEdit.teacher_id" /></el-form-item>
@@ -85,6 +187,7 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as scheduleApi from '../api/schedule'
 import { setSelectionWindow, getSelectionWindow, getUsers, resetPassword } from '../api/admin'
+import * as trainingApi from '../api/training'
 
 const activeTab = ref('schedule')
 const adminClassId = ref(1)
@@ -96,6 +199,22 @@ const schEdit = ref({})
 const windowForm = ref({ selection_start_time: '', selection_end_time: '', drop_deadline: '' })
 const users = ref([])
 const userLoading = ref(false)
+const typeMap2 = { compulsory: '必修', limited: '限选', elective: '选修' }
+
+// 培养方案
+const plans = ref([])
+const planLoading = ref(false)
+const planDialogVisible = ref(false)
+const planForm = ref({ major: '', grade: 2024, total_credits_required: 150, elective_credits_required: 20 })
+const courseDialogVisible = ref(false)
+const courseForm = ref({ subject_id: null, course_type: 'compulsory', credit: 3, limited_group: '', min_required: 2 })
+let selectedPlanId = null
+
+// 毕业审核
+const audits = ref([])
+const auditLoading = ref(false)
+const auditMajor = ref('')
+const auditGrade = ref(null)
 
 async function loadSchedules() {
   schLoading.value = true
@@ -162,6 +281,65 @@ async function resetPwd(row) {
 
 function onTabChange(tab) {
   if (tab === 'users') loadUsers()
+  if (tab === 'plans') loadPlans()
+  if (tab === 'audit') loadAudits()
+}
+
+// ====== 培养方案 ======
+async function loadPlans() {
+  planLoading.value = true
+  try {
+    const res = await trainingApi.getPlans()
+    plans.value = (res.plans || []).map(p => ({ ...p, _courses: [] }))
+  } finally { planLoading.value = false }
+}
+async function onPlanExpand(row) {
+  if (row._courses.length) return
+  try {
+    const res = await trainingApi.getPlanCourses(row.id)
+    row._courses = res.courses || []
+  } catch {}
+}
+function showPlanDialog() { planForm.value = { major: '', grade: 2024, total_credits_required: 150, elective_credits_required: 20 }; planDialogVisible.value = true }
+async function createPlan() {
+  try {
+    await trainingApi.createPlan(planForm.value)
+    ElMessage.success('方案已创建')
+    planDialogVisible.value = false
+    loadPlans()
+  } catch (e) { ElMessage.error(e?.response?.data?.detail || '创建失败') }
+}
+function showAddCourseDialog(row) { selectedPlanId = row.id; courseForm.value = { subject_id: null, course_type: 'compulsory', credit: 3, limited_group: '', min_required: null }; courseDialogVisible.value = true }
+async function addCourse() {
+  try {
+    await trainingApi.addPlanCourse({ ...courseForm.value, plan_id: selectedPlanId })
+    ElMessage.success('课程已添加')
+    courseDialogVisible.value = false
+    loadPlans()
+  } catch (e) { ElMessage.error(e?.response?.data?.detail || '添加失败') }
+}
+async function deleteCourse(courseId) {
+  try { await trainingApi.deletePlanCourse(courseId); ElMessage.success('已删除'); loadPlans() } catch {}
+}
+
+// ====== 毕业审核 ======
+async function loadAudits() {
+  auditLoading.value = true
+  try {
+    const res = await trainingApi.getAudits(auditMajor.value || undefined, auditGrade.value || undefined)
+    audits.value = res.audits || []
+  } finally { auditLoading.value = false }
+}
+async function runBatchAudit() {
+  auditLoading.value = true
+  try {
+    const res = await trainingApi.auditBatch(auditMajor.value || undefined, auditGrade.value || undefined)
+    ElMessage.success(`审核完成，共 ${res.total} 人`)
+    loadAudits()
+  } catch (e) { ElMessage.error('审核失败'); auditLoading.value = false }
+}
+async function reauditStudent(sid) {
+  try { await trainingApi.auditStudent(sid); ElMessage.success(`${sid} 审核完成`); loadAudits() } catch {}
 }
 
 onMounted(async () => {

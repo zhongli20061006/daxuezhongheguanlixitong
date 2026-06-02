@@ -29,8 +29,8 @@ FastAPI + Vue 3 全栈学生管理系统，涵盖选课、成绩、课表、请�
 │   └── main.py             # 入口 (含 WS + 事件总线)
 ├── student-management-frontend/  # Vue 3 前端
 │   └── src/
-│       ├── api/            # Axios (9 个)
-│       ├── views/          # 页面 (13 个)
+│   ├── api/            # Axios (10 个)
+│   ├── views/          # 页面 (14 个)
 │       ├── components/     # 组件 (3 个)
 │       ├── stores/         # Pinia (3 个)
 │       ├── router/         # 路由 + 导航守卫
@@ -107,7 +107,7 @@ cd student-management-frontend && npm run dev
 | 成绩 | /scores/manual, /scores/import, /scores/calculate-total, /scores/student/{id} | ✅ |
 | 请假 | /leave/apply, /leave/my, /leave/{id}/cancel, /leave/{id}/detail | ✅ |
 | 审批 | /advisor/pending-approvals, /advisor/approve | ✅ |
-| 教室 | /classrooms/available, /classrooms/{id}/availability | ✅ |
+| 教室 | /classrooms/available, /classrooms/{id}/availability, /classrooms/reserve, /classrooms/my-reservations, /classrooms/reservation/{id}/cancel | ✅ |
 | 报修 | /repairs (CRUD + 状态流转) | ✅ |
 | 通知 | /notification/list, /notification/unread-count, /notification/{id}/read | ✅ |
 | 培养方案 | /training-plan/plans + /training-plan/courses | ✅ |
@@ -123,7 +123,7 @@ cd student-management-frontend && npm run dev
 ========================================
 ```
 
-测试覆盖：登录(4角色) → 设置选课窗口 → 选课 → 退课 → 课表 → 教室查询 → 报修(创建+状态变更) → 请假(申请+审批) → 成绩查询 → 通知(未读数+列表) → 管理(用户+窗口) → 系统概览
+测试覆盖：登录(4角色) → 选课 → 退课 → 课表 → 教室查询/预约/取消 → 报修 → 请假(申请+多级审批) → 成绩 → 通知 → 培养方案 → 毕业审核 → 管理
 
 ## API 文档
 

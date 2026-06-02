@@ -4,7 +4,7 @@ Model 层统一导出
 from app.models.teacher import Teacher
 from app.models.student_class import StudentClass
 from app.models.subject import Subject, SubjectType
-from app.models.classroom import Classroom
+from app.models.classroom import Classroom, ClassroomReservation
 from app.models.schedule import Schedule
 from app.models.course_capacity import CourseCapacity
 from app.models.course_selection import CourseSelection
@@ -28,6 +28,7 @@ __all__ = [
     "Subject",
     "SubjectType",
     "Classroom",
+    "ClassroomReservation",
     "Schedule",
     "CourseCapacity",
     "CourseSelection",
