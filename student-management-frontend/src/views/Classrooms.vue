@@ -15,7 +15,10 @@
         <div class="room-top"><span class="room-name">{{ r.name }}</span><el-tag size="small" type="success">空闲</el-tag></div>
         <div class="room-info">👥 {{ r.capacity }}人</div>
         <div class="room-info">🏢 {{ r.building || '-' }}</div>
-        <div class="room-tags"><el-tag v-if="r.has_projector" size="small" type="primary">投影</el-tag></div>
+        <div class="room-tags">
+          <el-tag v-if="r.has_projector" size="small" type="primary">投影</el-tag>
+          <el-button size="small" type="primary" @click.stop="showReserve(r)" :disabled="!canReserve">预约</el-button>
+        </div>
       </div>
     </div>
     <el-empty v-else-if="queried" description="该时段暂无空闲教室" />
@@ -44,7 +47,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getAvailableClassrooms, getClassroomAvailability, reserveClassroom, getMyReservations, cancelReservation } from '../api/classroom'
 
@@ -55,6 +58,7 @@ const rooms = ref([]); const loading = ref(false); const queried = ref(false)
 const detailVisible = ref(false); const detailData = ref(null)
 const reserveVisible = ref(false); const reserveForm = ref({ classroom_id:null, classroom_name:'', reason:'' }); const reserving = ref(false)
 const myReservations = ref([])
+const canReserve = computed(() => query.value.week && query.value.day_of_week && query.value.period)
 
 async function search() { loading.value=true; queried.value=true; try { const r=await getAvailableClassrooms(query.value); rooms.value=r.classrooms||[] } finally { loading.value=false } }
 function reset() { query.value={ week:null, day_of_week:null, period:'', min_capacity:0 }; rooms.value=[]; queried.value=false }

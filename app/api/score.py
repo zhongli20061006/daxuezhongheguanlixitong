@@ -17,7 +17,7 @@ from openpyxl import load_workbook
 from app.database import get_db
 from app.deps import get_current_user, require_role
 from app.models import (
-    Score, ScoreType, Schedule, Subject, Student, CourseSelection,
+    Score, ScoreType, Schedule, Subject, Student, CourseSelection, Teacher,
 )
 from app.utils.gpa_calculator import score_to_gpa
 from app.schemas.score import (
@@ -33,6 +33,18 @@ DAILY_WEIGHT = 0.2
 FINAL_WEIGHT = 0.8
 
 
+async def _get_teacher_id(db: AsyncSession, current_user: dict) -> int:
+    """通过工号(job_number)查 teacher 表数字 id，用于校验课程归属"""
+    from app.models import Teacher
+    result = await db.execute(
+        select(Teacher.id).where(Teacher.job_number == current_user["role_id"])
+    )
+    t = result.scalar_one_or_none()
+    if not t:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="教师信息不存在")
+    return t
+
+
 @router.post("/manual", response_model=ManualScoreResponse, summary="手动录入成绩")
 async def manual_score(
     req: ManualScoreRequest,
@@ -46,7 +58,7 @@ async def manual_score(
     - 已存在记录则 UPDATE，否则 INSERT
     - 录入完成后自动检查是否可计算总评
     """
-    teacher_id = int(current_user["role_id"])
+    teacher_id = await _get_teacher_id(db, current_user)
     try:
         score_type = ScoreType(req.score_type)
     except ValueError:
@@ -147,7 +159,7 @@ async def import_scores(
     Excel 批量导入期末成绩
     校验：文件格式 → 表头 → 行数据 → 选课名单对账 → 重复检查
     """
-    teacher_id = int(current_user["role_id"])
+    teacher_id = await _get_teacher_id(db, current_user)
 
     # Step 1: 校验文件格式
     if not file.filename or not file.filename.endswith(".xlsx"):
@@ -301,7 +313,7 @@ async def calculate_total(
     对指定课程的所有学生计算总评（平时gpa*0.2 + 期末gpa*0.8）
     仅在平时和期末成绩都齐全时才计算
     """
-    teacher_id = int(current_user["role_id"])
+    teacher_id = await _get_teacher_id(db, current_user)
     sch_result = await db.execute(
         select(Schedule).where(
             Schedule.id == schedule_id,
@@ -331,7 +343,7 @@ async def update_score(
     修改已录入的成绩，自动重算对应绩点
     如果该学生已有总评记录，自动重新计算
     """
-    teacher_id = int(current_user["role_id"])
+    teacher_id = await _get_teacher_id(db, current_user)
 
     if new_score < 0 or new_score > 100:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="分数范围 0-100")
@@ -379,6 +391,32 @@ async def update_score(
     return {"message": "成绩已更新", "score_id": score_id}
 
 
+@router.get("/by-schedule/{schedule_id}", summary="获取课程成绩（教师回填用）")
+async def get_scores_by_schedule(
+    schedule_id: int,
+    score_type: str = ...,
+    current_user: dict = Depends(require_role("teacher")),
+    db: AsyncSession = Depends(get_db),
+):
+    teacher_id = await _get_teacher_id(db, current_user)
+    sch = await db.execute(select(Schedule).where(Schedule.id == schedule_id, Schedule.teacher_id == teacher_id))
+    schedule = sch.scalar_one_or_none()
+    if not schedule:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该课程")
+
+    try:
+        st = ScoreType(score_type)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="无效的成绩类型")
+
+    result = await db.execute(
+        select(Score, Student).join(Student, Score.student_id == Student.id)
+        .where(Score.schedule_id == schedule_id, Score.score_type == st, Score.attempt == 1)
+    )
+    scores = [{"student_id": s.student_id, "student_name": stu.name, "score": float(s.score) if s.score is not None else None} for s, stu in result.all()]
+    return {"scores": scores}
+
+
 @router.get("/student/{student_id}", response_model=StudentScoresResponse, summary="查看学生成绩")
 async def student_scores(
     student_id: str,
@@ -408,7 +446,7 @@ async def student_scores(
             credit=float(subj.credit),
             score=float(sc.score) if sc.score is not None else None,
             gpa=float(sc.gpa),
-            score_type=sc.score_type.value,
+            score_type=sc.score_type if isinstance(sc.score_type, str) else str(sc.score_type.value),
             attempt=sc.attempt,
             updated_at=sc.updated_at.strftime("%Y-%m-%d %H:%M:%S") if sc.updated_at else "",
         )

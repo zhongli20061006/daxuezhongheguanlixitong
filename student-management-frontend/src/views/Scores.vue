@@ -24,6 +24,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { getStudentScores } from '../api/score'
 import { useAuthStore } from '../stores/auth'
 
@@ -50,6 +51,8 @@ onMounted(async () => {
       if (s.score_type === '总评') grouped[s.course_name].total_gpa = s.gpa
     }
     scores.value = Object.values(grouped)
+  } catch (e) {
+    ElMessage.error('加载成绩失败')
   } finally { loading.value = false }
 })
 </script>

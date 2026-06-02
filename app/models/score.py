@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime
-from sqlalchemy import String, Integer, ForeignKey, Numeric, DateTime, Enum as SAEnum, UniqueConstraint, func
+from sqlalchemy import String, Integer, ForeignKey, Numeric, DateTime, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
@@ -38,8 +38,8 @@ class Score(Base):
     gpa: Mapped[float] = mapped_column(
         Numeric(2, 1), nullable=False, comment="绩点，5分制"
     )
-    score_type: Mapped[ScoreType] = mapped_column(
-        SAEnum(ScoreType), nullable=False, default=ScoreType.total,
+    score_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=ScoreType.total.value,
         comment="成绩类型：平时/期末/总评"
     )
     attempt: Mapped[int] = mapped_column(

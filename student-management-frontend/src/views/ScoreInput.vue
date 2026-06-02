@@ -33,7 +33,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { manualScore, importScores } from '../api/score'
+import { manualScore, importScores, getScoresBySchedule } from '../api/score'
 import * as selectionApi from '../api/selection'
 
 const activeTab = ref('manual')
@@ -45,7 +45,21 @@ const imp = ref({ schedule_id:null })
 const selectedFile = ref(null)
 
 async function loadCourses() { try { const r=await selectionApi.getMyCourses(); const s=new Set(); courses.value=(r.courses||[]).filter(c=>!s.has(c.schedule_id)&&s.add(c.schedule_id)).map(c=>({schedule_id:c.schedule_id,course_name:c.course_name})) } catch {} }
-async function loadStudents() { if(!manual.value.schedule_id)return; try { const r=await selectionApi.getMyCourses(); students.value=(r.courses||[]).filter(c=>c.schedule_id===manual.value.schedule_id).map(c=>({student_id:c.student_id,student_name:c.student_name,score:null})) } catch {} }
+async function loadStudents() {
+  if(!manual.value.schedule_id)return;
+  try {
+    const r=await selectionApi.getMyCourses();
+    const list=(r.courses||[]).filter(c=>c.schedule_id===manual.value.schedule_id).map(c=>({student_id:c.student_id,student_name:c.student_name,score:null}));
+    // 回填已有成绩
+    try {
+      const sr=await getScoresBySchedule(manual.value.schedule_id, manual.value.score_type);
+      const scoreMap={};
+      for(const s of (sr.scores||[])) if(s.score!=null) scoreMap[s.student_id]=s.score;
+      for(const item of list) if(scoreMap[item.student_id]!=null) item.score=scoreMap[item.student_id];
+    } catch{}
+    students.value=list;
+  } catch{}
+}
 async function submitManual() { const data=students.value.filter(s=>s.score!=null).map(s=>({student_id:s.student_id,score:s.score})); if(!data.length){ElMessage.warning('请填写成绩');return} submitting.value=true; try { const r=await manualScore({schedule_id:manual.value.schedule_id,score_type:manual.value.score_type,scores:data}); ElMessage.success(`成功录入${r.inserted}条`) } finally { submitting.value=false } }
 function handleFile(file) { selectedFile.value=file.raw; fileReady.value=true }
 async function submitImport() { uploading.value=true; importMsg.value=''; try { const r=await importScores(imp.value.schedule_id,selectedFile.value); importMsg.value=`成功导入${r.success_count}条`; if(r.warnings?.length) importMsg.value+=' | '+r.warnings.join(',') } finally { uploading.value=false } }
