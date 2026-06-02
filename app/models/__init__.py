@@ -21,6 +21,7 @@ from app.models.approval_config import ApprovalConfig
 from app.models.training_plan import TrainingPlan
 from app.models.plan_course import PlanCourse
 from app.models.graduation_audit import GraduationAudit
+from app.models.exam import Exam, ExamArrangement, ExamStudent, ExamConflict
 
 __all__ = [
     "Teacher",
@@ -50,4 +51,8 @@ __all__ = [
     "TrainingPlan",
     "PlanCourse",
     "GraduationAudit",
+    "Exam",
+    "ExamArrangement",
+    "ExamStudent",
+    "ExamConflict",
 ]

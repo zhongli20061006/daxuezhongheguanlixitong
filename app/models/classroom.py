@@ -16,6 +16,9 @@ class Classroom(Base):
     capacity: Mapped[int] = mapped_column(Integer, nullable=False, comment="容纳人数")
     building: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="教学楼名称")
     has_projector: Mapped[bool] = mapped_column(Boolean, default=False, comment="是否有投影仪")
+    type: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, default="普通教室", comment="教室类型：普通教室/机房/实验室/阶梯教室"
+    )
 
     schedules: Mapped[list["Schedule"]] = relationship(back_populates="classroom")
 

@@ -27,7 +27,21 @@
       <el-tab-pane label="毕业审核" name="audit">
         <div class="content-card">
           <div style="display:flex;gap:12px;margin-bottom:12px;align-items:center"><el-input v-model="auditMajor" placeholder="专业筛选" style="width:180px" clearable /><el-input-number v-model="auditGrade" placeholder="年级" :min="2000" style="width:120px" /><el-button type="primary" @click="loadAudits">查询</el-button><el-button type="success" @click="runBatchAudit">批量审核</el-button></div>
-          <el-table :data="audits" v-loading="auditLoading" stripe><el-table-column prop="student_id" label="学号" width="110" /><el-table-column prop="student_name" label="姓名" width="90" /><el-table-column prop="major" label="专业" /><el-table-column label="总学分" width="100"><template #default="{row}">{{ row.total_credits_earned }}/{{ row.total_credits_required }}</template></el-table-column><el-table-column label="必修" width="70"><template #default="{row}">{{ row.compulsory_passed }}/{{ row.compulsory_total }}</template></el-table-column><el-table-column label="毕业" width="70"><template #default="{row}"><el-tag :type="row.is_graduatable?'success':'danger'" size="small">{{ row.is_graduatable?'可毕业':'未达标' }}</el-tag></template></el-table-column><el-table-column label="详情" min-width="150" show-overflow-tooltip><template #default="{row}">{{ row.detail||'-' }}</template></el-table-column><el-table-column label="操作" width="80"><template #default="{row}"><el-button size="small" @click="reauditStudent(row.student_id)">重审</el-button></template></el-table-column></el-table>
+          <el-table :data="audits" v-loading="auditLoading" stripe>... </el-table>
+        </div>
+      </el-tab-pane>
+      <el-tab-pane label="考试管理" name="exam">
+        <div class="content-card">
+          <el-button type="primary" @click="generateExams" :loading="examGenerating" style="margin-bottom:12px">自动排考</el-button>
+          <el-table :data="examList" v-loading="examLoading" stripe>
+            <el-table-column prop="id" label="ID" width="60" />
+            <el-table-column prop="subject_name" label="科目" />
+            <el-table-column prop="classroom_name" label="教室" />
+            <el-table-column label="时间"><template #default="{row}">{{ row.date }} {{ row.start_time }}-{{ row.end_time }}</template></el-table-column>
+            <el-table-column prop="invigilator_name" label="监考教师" />
+            <el-table-column label="状态" width="80"><template #default="{row}"><el-tag :type="row.status==='已发布'?'success':row.status==='已排考'?'warning':'info'" size="small">{{ row.status }}</el-tag></template></el-table-column>
+            <el-table-column label="操作" width="80"><template #default="{row}"><el-button v-if="row.status==='已排考'" size="small" type="success" @click="publishHandler(row.id)">发布</el-button></template></el-table-column>
+          </el-table>
         </div>
       </el-tab-pane>
     </el-tabs>
@@ -44,6 +58,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import * as scheduleApi from '../api/schedule'
 import { setSelectionWindow, getSelectionWindow, getUsers, resetPassword } from '../api/admin'
 import * as trainingApi from '../api/training'
+import * as examApi from '../api/exam'
 const activeTab=ref('schedule'); const adminClassId=ref(1); const classOptions=[1,2,3]; const schedules=ref([]); const schLoading=ref(false); const schDialogVisible=ref(false); const schEdit=ref({})
 const windowForm=ref({selection_start_time:'',selection_end_time:'',drop_deadline:''})
 const users=ref([]); const userLoading=ref(false)
@@ -51,6 +66,8 @@ const typeMap2={compulsory:'必修',limited:'限选',elective:'选修'}
 const plans=ref([]); const planLoading=ref(false); const planDialogVisible=ref(false); const planForm=ref({major:'',grade:2024,total_credits_required:150,elective_credits_required:20})
 const courseDialogVisible=ref(false); const courseForm=ref({subject_id:null,course_type:'compulsory',credit:3,limited_group:'',min_required:2}); let selectedPlanId=null
 const audits=ref([]); const auditLoading=ref(false); const auditMajor=ref(''); const auditGrade=ref(null)
+// 考试管理
+const examList=ref([]); const examLoading=ref(false); const examGenerating=ref(false)
 async function loadSchedules(){schLoading.value=true;try{const r=await scheduleApi.getClassSchedule(adminClassId.value);schedules.value=r.schedules||[]}finally{schLoading.value=false}}
 function showScheduleDialog(r){schEdit.value=r?{...r}:{teacher_id:null,subject_id:null,class_id:1,classroom_id:null,day_of_week:1,period:'1-2',weeks:'1-18',semester:'2024-2025-1'};schDialogVisible.value=true}
 async function saveSchedule(){try{if(schEdit.value.id){await scheduleApi.updateSchedule(schEdit.value.id,schEdit.value)}else{await scheduleApi.createSchedule(schEdit.value)}ElMessage.success('保存成功');schDialogVisible.value=false;loadSchedules()}catch(e){ElMessage.error(e?.response?.data?.detail||'保存失败')}}
@@ -58,7 +75,7 @@ async function deleteSch(r){try{await ElMessageBox.confirm('确定删除？','�
 async function saveWindow(){await setSelectionWindow(windowForm.value);ElMessage.success('保存成功')}
 async function loadUsers(){userLoading.value=true;try{const r=await getUsers();users.value=r.users||[]}finally{userLoading.value=false}}
 async function resetPwd(r){try{const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';const a=new Uint8Array(8);crypto.getRandomValues(a);const p=Array.from(a).map(b=>chars[b%chars.length]).join('');await ElMessageBox.confirm(`确定重置 ${r.username} 的密码为 ${p}？`,'确认');await resetPassword(r.id,p);ElMessage.success(`密码已重置为: ${p}`)}catch{}}
-function onTabChange(t){if(t==='users')loadUsers();if(t==='plans')loadPlans();if(t==='audit')loadAudits()}
+function onTabChange(t){if(t==='users')loadUsers();if(t==='plans')loadPlans();if(t==='audit')loadAudits();if(t==='exam')loadExams()}
 async function loadPlans(){planLoading.value=true;try{const r=await trainingApi.getPlans();plans.value=(r.plans||[]).map(p=>({...p,_courses:[]}))}finally{planLoading.value=false}}
 async function onPlanExpand(r){if(r._courses.length)return;try{const res=await trainingApi.getPlanCourses(r.id);r._courses=res.courses||[]}catch{}}
 function showPlanDialog(){planForm.value={major:'',grade:2024,total_credits_required:150,elective_credits_required:20};planDialogVisible.value=true}
@@ -69,5 +86,8 @@ async function deleteCourse(id){try{await trainingApi.deletePlanCourse(id);ElMes
 async function loadAudits(){auditLoading.value=true;try{const r=await trainingApi.getAudits(auditMajor.value||undefined,auditGrade.value||undefined);audits.value=r.audits||[]}finally{auditLoading.value=false}}
 async function runBatchAudit(){auditLoading.value=true;try{const r=await trainingApi.auditBatch(auditMajor.value||undefined,auditGrade.value||undefined);ElMessage.success(`审核完成，共 ${r.total} 人`);loadAudits()}catch(e){ElMessage.error('审核失败');auditLoading.value=false}}
 async function reauditStudent(sid){try{await trainingApi.auditStudent(sid);ElMessage.success(`${sid} 审核完成`);loadAudits()}catch{}}
+async function loadExams(){examLoading.value=true;try{const r=await examApi.listExams();examList.value=r.exams||[]}finally{examLoading.value=false}}
+async function generateExams(){examGenerating.value=true;try{const r=await examApi.generateExams();ElMessage.success(r.message);loadExams()}catch(e){ElMessage.error(e?.response?.data?.detail||'排考失败')}finally{examGenerating.value=false}}
+async function publishHandler(id){try{await examApi.publishExam(id);ElMessage.success('已发布');loadExams()}catch{}}
 onMounted(async()=>{await loadSchedules();try{const r=await getSelectionWindow();windowForm.value={...windowForm.value,...r}}catch{}})
 </script>

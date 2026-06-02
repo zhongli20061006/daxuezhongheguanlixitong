@@ -14,12 +14,14 @@
           <router-link to="/scores" class="nav-item">我的成绩</router-link>
           <router-link to="/plan" class="nav-item">培养方案</router-link>
           <router-link to="/repairs" class="nav-item">报修中心</router-link>
+          <router-link to="/my-exams" class="nav-item">我的考试</router-link>
         </template>
         <template v-if="auth.role === 'teacher'">
           <router-link to="/classrooms" class="nav-item">空闲教室</router-link>
           <router-link to="/scores/input" class="nav-item">成绩录入</router-link>
           <router-link to="/advisor" class="nav-item">请假审批</router-link>
           <router-link to="/repairs" class="nav-item">报修中心</router-link>
+          <router-link to="/my-invigilations" class="nav-item">监考安排</router-link>
         </template>
         <template v-if="auth.role === 'staff'">
           <router-link to="/classrooms" class="nav-item">空闲教室</router-link>
