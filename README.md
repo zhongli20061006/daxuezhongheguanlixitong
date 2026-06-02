@@ -30,7 +30,7 @@ FastAPI + Vue 3 全栈学生管理系统，涵盖选课、成绩、课表、请�
 ├── student-management-frontend/  # Vue 3 前端
 │   └── src/
 │   ├── api/            # Axios (10 个)
-│   ├── views/          # 页面 (14 个)
+│   ├── views/          # 页面 (15 个)
 │       ├── components/     # 组件 (3 个)
 │       ├── stores/         # Pinia (3 个)
 │       ├── router/         # 路由 + 导航守卫
@@ -112,6 +112,7 @@ cd student-management-frontend && npm run dev
 | 通知 | /notification/list, /notification/unread-count, /notification/{id}/read | ✅ |
 | 培养方案 | /training-plan/plans + /training-plan/courses | ✅ |
 | 毕业审核 | /graduation/audit/{id}, /graduation/audit-batch, /graduation/audits | ✅ |
+| 个人中心 | /profile, /profile/phone | ✅ |
 | 管理 | /admin/users, /admin/selection-window, /admin/capacity/{id}, /admin/reset-password | ✅ |
 | 系统 | /internal/summary, /health, WS /ws | ✅ |
 
@@ -123,7 +124,7 @@ cd student-management-frontend && npm run dev
 ========================================
 ```
 
-测试覆盖：登录(4角色) → 选课 → 退课 → 课表 → 教室查询/预约/取消 → 报修 → 请假(申请+多级审批) → 成绩 → 通知 → 培养方案 → 毕业审核 → 管理
+测试覆盖：登录(4角色) → 个人中心 → 选课 → 退课 → 课表 → 教室查询/预约/取消 → 报修 → 请假(申请+多级审批) → 成绩 → 通知 → 培养方案 → 毕业审核 → 管理
 
 ## API 文档
 
