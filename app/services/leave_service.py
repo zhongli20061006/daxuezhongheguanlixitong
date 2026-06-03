@@ -4,6 +4,7 @@
 """
 from datetime import datetime, date
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.leave_application import LeaveApplication
@@ -117,7 +118,12 @@ class LeaveService:
             result=result,
             comment=comment,
         )
-        db.add(record)
+        try:
+            db.add(record)
+            await db.flush()
+        except IntegrityError:
+            await db.rollback()
+            raise ValueError(f"该级别的审批已被处理，不能重复审批")
 
         if result == "驳回":
             leave.status = "已驳回"

@@ -13,6 +13,7 @@ from app.utils.period_parser import is_period_overlap
 from app.schemas.classroom import (
     ClassroomItem, ClassroomAvailableResponse, ClassroomAvailabilityResponse, OccupiedDetail,
 )
+from sqlalchemy.exc import IntegrityError
 
 router = APIRouter(prefix="/classrooms", tags=["教室"])
 
@@ -122,28 +123,20 @@ async def reserve_classroom(
         if is_week_matched(week, s.weeks) and is_period_overlap(period, s.period):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该时段有课程安排，无法预约")
 
-    # 检查是否已被其他人预约
-    existing = await db.execute(
-        select(ClassroomReservation).where(
-            ClassroomReservation.classroom_id == classroom_id,
-            ClassroomReservation.week == week,
-            ClassroomReservation.day_of_week == day_of_week,
-            ClassroomReservation.period == period,
-            ClassroomReservation.status == "已预约",
+    # 原子预约：直接 INSERT，依赖 DB UNIQUE 约束防止竞态
+    try:
+        reservation = ClassroomReservation(
+            classroom_id=classroom_id, week=week, day_of_week=day_of_week,
+            period=period, user_id=current_user["username"],
+            user_role=current_user["role"], reason=reason, status="已预约",
         )
-    )
-    if existing.scalar_one_or_none():
+        db.add(reservation)
+        await db.commit()
+        await db.refresh(reservation)
+        return {"message": "预约成功", "id": reservation.id}
+    except IntegrityError:
+        await db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该时段已被其他人预约")
-
-    reservation = ClassroomReservation(
-        classroom_id=classroom_id, week=week, day_of_week=day_of_week,
-        period=period, user_id=current_user["username"],
-        user_role=current_user["role"], reason=reason, status="已预约",
-    )
-    db.add(reservation)
-    await db.commit()
-    await db.refresh(reservation)
-    return {"message": "预约成功", "id": reservation.id}
 
 
 @router.get("/my-reservations", summary="我的预约列表")
@@ -184,6 +177,6 @@ async def cancel_reservation(
     r = result.scalar_one_or_none()
     if not r:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="预约不存在或已取消")
-    r.status = "已取消"
+    await db.delete(r)
     await db.commit()
     return {"message": "已取消预约"}
