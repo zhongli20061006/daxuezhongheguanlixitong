@@ -60,7 +60,7 @@ async function loadStudents() {
     students.value=list;
   } catch{}
 }
-async function submitManual() { const data=students.value.filter(s=>s.score!=null).map(s=>({student_id:s.student_id,score:s.score})); if(!data.length){ElMessage.warning('请填写成绩');return} submitting.value=true; try { const r=await manualScore({schedule_id:manual.value.schedule_id,score_type:manual.value.score_type,scores:data}); ElMessage.success(`成功录入${r.inserted}条`) } finally { submitting.value=false } }
+async function submitManual() { const data=students.value.filter(s=>s.score!=null).map(s=>({student_id:s.student_id,score:s.score})); if(!data.length){ElMessage.warning('请填写成绩');return} submitting.value=true; try { const r=await manualScore({schedule_id:manual.value.schedule_id,score_type:manual.value.score_type,scores:data}); ElMessage.success(`成功录入${r.inserted}条，更新${r.updated}条`) } finally { submitting.value=false } }
 function handleFile(file) { selectedFile.value=file.raw; fileReady.value=true }
 async function submitImport() { uploading.value=true; importMsg.value=''; try { const r=await importScores(imp.value.schedule_id,selectedFile.value); importMsg.value=`成功导入${r.success_count}条`; if(r.warnings?.length) importMsg.value+=' | '+r.warnings.join(',') } finally { uploading.value=false } }
 onMounted(loadCourses)
