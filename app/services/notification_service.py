@@ -149,15 +149,22 @@ class NotificationService:
         return deleted > 0
 
     async def cleanup_read(self, db: AsyncSession, days: int = 7) -> int:
-        """清理指定天数之前的已读通知，返回删除条数"""
-        threshold = datetime.now() - timedelta(days=days)
-        # 先查出符合条件的 notification_id
-        result = await db.execute(
-            select(Notification.id).where(Notification.created_at < threshold)
-        )
-        old_ids = [row[0] for row in result.all()]
-        if not old_ids:
-            return 0
+        """清理已读通知：days=0 清除全部已读，days>0 清除 N 天前的已读通知"""
+        if days > 0:
+            threshold = datetime.now() - timedelta(days=days)
+            result = await db.execute(
+                select(Notification.id).where(Notification.created_at < threshold)
+            )
+            old_ids = [row[0] for row in result.all()]
+            if not old_ids:
+                return 0
+        else:
+            # days=0: 清除全部已读
+            all_result = await db.execute(select(Notification.id))
+            old_ids = [row[0] for row in all_result.all()]
+            if not old_ids:
+                return 0
+
         # 删除已读的 notification_user 记录
         nu_result = await db.execute(
             delete(NotificationUser).where(
@@ -166,6 +173,7 @@ class NotificationService:
             )
         )
         deleted = nu_result.rowcount
+
         # 清理孤立的 Notification
         orphan_result = await db.execute(
             delete(Notification).where(

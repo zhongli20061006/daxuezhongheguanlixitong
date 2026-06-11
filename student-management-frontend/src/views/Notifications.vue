@@ -76,8 +76,8 @@ async function handleDelete(item) {
 }
 async function handleCleanup() {
   try {
-    await ElMessageBox.confirm('将清除所有 7 天前的已读通知，确定？', '清理确认', { type: 'warning' })
-    const r = await cleanupRead(7)
+    await ElMessageBox.confirm('将清除所有已读通知，确定？', '清理确认', { type: 'warning' })
+    const r = await cleanupRead(0)
     await load()
     ElMessage.success(r.message || '清理完成')
   } catch {}
