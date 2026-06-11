@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime
-from sqlalchemy import String, Integer, Text, DateTime, Enum as SAEnum, Index, func
+from sqlalchemy import String, Integer, Text, DateTime, Index, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 

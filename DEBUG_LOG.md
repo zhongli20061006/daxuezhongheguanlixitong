@@ -99,8 +99,8 @@ CREATE UNIQUE INDEX uk_approve ON approval_record(leave_id, level);
 
 ---
 
-## 已知问题
+## 已知问题（v0.4.0 已全部修复）
 
-1. **Element Plus 2.5.x `el-date-picker` + `value-format` 兼容性问题**：使用 `value-format="YYYY-MM-DD"` 属性的 datepicker 初始化时调用 `.hour()` 方法崩溃（Element Plus Issue）。解决方案：放弃 `el-date-picker`，改用原生 `<input type="date">`。
-2. **SAEnum 与 MySQL ENUM 不兼容**：SQLAlchemy SAEnum 存储 Python 枚举名（如 `"electronic"`），而 MySQL ENUM 列期望中文值（如 `"电子产品"`）。解决方案：Model 中使用 `String(20)` 替代 `SAEnum()`，API 层传递枚举 `.value`。
-3. **教师 `role_id` 存储工号（如 `"T10001"`）而非数字 ID**：导致 `int(role_id)` 崩溃。解决方案：通过 `Teacher.job_number` 查表获取数字 ID。
+1. ~~**Element Plus 2.5.x `el-date-picker` + `value-format` 兼容性问题**~~ → ✅ v0.7.1 已修复（改用原生 `<input type="date">`）
+2. ~~**SAEnum 与 MySQL ENUM 不兼容**~~ → ✅ 已修复（`Score.score_type`、`Repair.type`、`Repair.status` 使用 `String` 替代 `SAEnum`）
+3. ~~**教师 `role_id` 存储工号（如 `"T10001"`）而非数字 ID**~~ → ✅ 已修复（`_get_teacher_id` 通过 `Teacher.job_number` 查表获取数字 ID）
