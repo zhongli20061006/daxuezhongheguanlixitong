@@ -2,8 +2,11 @@
 WebSocket 连接管理器
 管理 userId -> WebSocket 连接的映射，支持单播和广播
 """
+import logging
 from fastapi import WebSocket
 from collections import defaultdict
+
+logger = logging.getLogger("student_management")
 
 
 class WebSocketManager:
@@ -21,7 +24,7 @@ class WebSocketManager:
         try:
             await ws.close()
         except Exception:
-            pass
+            logger.debug("WebSocket close failed for user %s", user_id, exc_info=True)
 
     async def send(self, user_id: str, data: dict):
         dead: list[WebSocket] = []
@@ -31,6 +34,7 @@ class WebSocketManager:
                 await ws.send_json(jsonable_encoder(data))
             except Exception:
                 dead.append(ws)
+                logger.debug("WebSocket send failed for user %s", user_id, exc_info=True)
         for ws in dead:
             await self.disconnect(user_id, ws)
 
@@ -43,6 +47,7 @@ class WebSocketManager:
                     await ws.send_json(jsonable_encoder(data))
                 except Exception:
                     dead.append((uid, ws))
+                    logger.debug("WebSocket broadcast failed for user %s", uid, exc_info=True)
         for uid, ws in dead:
             await self.disconnect(uid, ws)
 

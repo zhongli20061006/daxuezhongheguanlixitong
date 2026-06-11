@@ -132,10 +132,9 @@ async function markAllRead() {
 }
 
 function connectWS() {
-  const token = localStorage.getItem('sms_token')
-  if (!token) return
+  if (!auth.token) return
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  ws = new WebSocket(`${protocol}://${window.location.hostname}:8000/ws?token=${token}`)
+  ws = new WebSocket(`${protocol}://${window.location.hostname}:8000/ws?token=${auth.token}`)
   ws.onmessage = (e) => { try { const m = JSON.parse(e.data); if (m.type === 'notification') unreadCount.value++ } catch {} }
   ws.onclose = () => { setTimeout(connectWS, 5000) }
 }

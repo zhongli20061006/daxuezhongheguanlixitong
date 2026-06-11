@@ -14,7 +14,7 @@ from app.config import settings
 # echo=True: 打印所有SQL语句，方便调试（生产环境改为False）
 async_engine = create_async_engine(
     settings.database_url,
-    echo=True,
+    echo=settings.debug_sql,
     pool_size=10,
     max_overflow=20,
 )
@@ -28,7 +28,7 @@ AsyncSessionLocal = async_sessionmaker(
 # ===== 同步引擎 =====
 sync_engine = create_engine(
     settings.sync_database_url,
-    echo=True,
+    echo=settings.debug_sql,
 )
 SyncSessionLocal = sessionmaker(
     autocommit=False,

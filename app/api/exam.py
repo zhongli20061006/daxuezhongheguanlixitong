@@ -7,7 +7,7 @@ GET  /exam/my-exams       — 学生考试安排
 GET  /exam/my-invigilations — 教师监考安排
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -29,7 +29,6 @@ async def generate_exams(
     db: AsyncSession = Depends(get_db),
 ):
     # 先删除同学期已有考试（幂等：每次重新生成）
-    from sqlalchemy import delete
     existing_exams = await db.execute(select(Exam.id).where(Exam.semester == req.semester))
     exam_ids = [row[0] for row in existing_exams.all()]
     if exam_ids:

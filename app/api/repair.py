@@ -4,6 +4,7 @@ POST /repairs            — 创建报修
 GET  /repairs            — 查看报修列表（按角色筛选）
 PUT  /repairs/{id}/status — 更新报修状态（含流转规则校验）
 """
+import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, text
@@ -161,7 +162,6 @@ async def update_repair_status(
                 event_type=Events.REPAIR_STATUS_CHANGED,
             )
             await s.commit()
-    import asyncio
     asyncio.create_task(_notify())
 
     return _to_repair_item(repair)

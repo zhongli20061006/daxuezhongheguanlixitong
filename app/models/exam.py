@@ -3,7 +3,7 @@
 """
 from __future__ import annotations
 from datetime import date, datetime
-from sqlalchemy import String, Integer, Date, DateTime, Text, Index, func
+from sqlalchemy import String, Integer, Date, DateTime, Text, Index, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
@@ -13,8 +13,8 @@ class Exam(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="考试ID")
     semester: Mapped[str] = mapped_column(String(20), nullable=False, comment="学期，如2024-2025-1")
-    subject_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="科目ID")
-    schedule_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="课表ID")
+    subject_id: Mapped[int] = mapped_column(ForeignKey("subject.id"), nullable=False, comment="科目ID")
+    schedule_id: Mapped[int] = mapped_column(ForeignKey("schedule.id"), nullable=False, comment="课表ID")
     exam_type: Mapped[str] = mapped_column(String(10), nullable=False, default="统一考试", comment="统一考试/随堂考试")
     duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=120, comment="考试时长(分钟)")
     status: Mapped[str] = mapped_column(String(10), nullable=False, default="待排考", comment="待排考/已排考/已发布/已结束")
@@ -26,8 +26,8 @@ class ExamArrangement(Base):
     __tablename__ = "exam_arrangement"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="安排ID")
-    exam_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="考试ID")
-    classroom_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="教室ID")
+    exam_id: Mapped[int] = mapped_column(ForeignKey("exam.id"), nullable=False, comment="考试ID")
+    classroom_id: Mapped[int] = mapped_column(ForeignKey("classroom.id"), nullable=False, comment="教室ID")
     date: Mapped[date] = mapped_column(Date, nullable=False, comment="考试日期")
     start_time: Mapped[str] = mapped_column(String(20), nullable=False, comment="开始时间，如08:00")
     end_time: Mapped[str] = mapped_column(String(20), nullable=False, comment="结束时间")
@@ -40,8 +40,8 @@ class ExamStudent(Base):
     __tablename__ = "exam_student"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    exam_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="考试ID")
-    student_id: Mapped[str] = mapped_column(String(20), nullable=False, comment="学号")
+    exam_id: Mapped[int] = mapped_column(ForeignKey("exam.id"), nullable=False, comment="考试ID")
+    student_id: Mapped[str] = mapped_column(ForeignKey("student.id"), nullable=False, comment="学号")
     seat_no: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="座位号")
 
     __table_args__ = (Index("uk_exam_student", "exam_id", "student_id", unique=True),)

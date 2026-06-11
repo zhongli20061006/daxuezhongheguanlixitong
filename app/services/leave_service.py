@@ -2,18 +2,21 @@
 请假服务
 处理请假申请的业务逻辑：冲突检测、多级审批流转
 """
+import logging
 from datetime import datetime, date
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.leave_application import LeaveApplication
+from app.models.leave_application import LeaveApplication, LeaveStatus
 from app.models.approval_record import ApprovalRecord
 from app.models.approval_config import ApprovalConfig
 from app.models.student_class import StudentClass
 from app.models.student import Student
 from app.services.event_bus import Events, event_bus
 from app.services.notification_service import notification_service as ns
+
+logger = logging.getLogger("student_management")
 
 
 class LeaveService:
@@ -45,7 +48,7 @@ class LeaveService:
                 break
 
         levels = [int(lv.strip()) for lv in required_levels_str.split(",")]
-        initial_status = "审批中(辅导员)" if 1 in levels else "审批中(学院)"
+        initial_status = LeaveStatus.PENDING_COUNSELOR.value if 1 in levels else LeaveStatus.PENDING_COLLEGE.value
 
         leave = LeaveApplication(
             student_id=student_id,
@@ -75,7 +78,7 @@ class LeaveService:
             )
             await db.commit()
         except Exception:
-            pass
+            logger.warning("Failed to create notification for leave #%s", leave.id, exc_info=True)
 
         return leave
 
@@ -95,15 +98,15 @@ class LeaveService:
         leave = leave_result.scalar_one_or_none()
         if not leave:
             raise ValueError("请假申请不存在")
-        if leave.status in ("已通过", "已驳回", "已撤销"):
+        if leave.status in (LeaveStatus.APPROVED.value, LeaveStatus.REJECTED.value, LeaveStatus.CANCELLED.value):
             raise ValueError(f"该申请已{leave.status}，不能重复审批")
 
         # 确定当前审批级别
-        if leave.status == "审批中(辅导员)":
+        if leave.status == LeaveStatus.PENDING_COUNSELOR.value:
             level = 1
             if approver_role not in ("advisor", "admin"):
                 raise ValueError("当前审批阶段需要辅导员审批")
-        elif leave.status == "审批中(学院)":
+        elif leave.status == LeaveStatus.PENDING_COLLEGE.value:
             level = 2
             if not (is_college_admin or approver_role == "admin"):
                 raise ValueError("当前审批阶段需要学院管理员审批")
@@ -126,23 +129,21 @@ class LeaveService:
             raise ValueError(f"该级别的审批已被处理，不能重复审批")
 
         if result == "驳回":
-            leave.status = "已驳回"
+            leave.status = LeaveStatus.REJECTED.value
         elif result == "通过":
             if level == 1:
-                # 检查是否需要第二级审批
                 required_levels = self._get_required_levels_for_days(leave.total_days)
                 if 2 in required_levels:
-                    leave.status = "审批中(学院)"
+                    leave.status = LeaveStatus.PENDING_COLLEGE.value
                 else:
-                    leave.status = "已通过"
+                    leave.status = LeaveStatus.APPROVED.value
             elif level == 2:
-                leave.status = "已通过"
+                leave.status = LeaveStatus.APPROVED.value
 
         await db.commit()
         await db.refresh(leave)
 
         if result == "通过" and leave.status == "已通过":
-            # 直接创建通知，确保 commit 之后再次 commit
             try:
                 await ns.create_notification(
                     db=db,
@@ -153,7 +154,7 @@ class LeaveService:
                 )
                 await db.commit()
             except Exception:
-                pass
+                logger.warning("Failed to create approval notification for leave #%s", leave.id, exc_info=True)
         elif result == "驳回":
             try:
                 await ns.create_notification(
@@ -165,7 +166,7 @@ class LeaveService:
                 )
                 await db.commit()
             except Exception:
-                pass
+                logger.warning("Failed to create rejection notification for leave #%s", leave.id, exc_info=True)
 
         return leave
 
@@ -179,9 +180,9 @@ class LeaveService:
         leave = leave_result.scalar_one_or_none()
         if not leave:
             raise ValueError("请假申请不存在")
-        if leave.status in ("已通过", "已驳回", "已撤销"):
+        if leave.status in (LeaveStatus.APPROVED.value, LeaveStatus.REJECTED.value, LeaveStatus.CANCELLED.value):
             raise ValueError("当前状态不可撤销")
-        leave.status = "已撤销"
+        leave.status = LeaveStatus.CANCELLED.value
         leave.updated_at = datetime.now()
         await db.commit()
         return leave
@@ -201,7 +202,7 @@ class LeaveService:
             stmt = (
                 select(LeaveApplication, Student)
                 .join(Student, LeaveApplication.student_id == Student.id)
-                .where(LeaveApplication.status == "审批中(辅导员)")
+                .where(LeaveApplication.status == LeaveStatus.PENDING_COUNSELOR.value)
             )
             if class_id:
                 stmt = stmt.where(Student.class_id == class_id)
@@ -210,7 +211,7 @@ class LeaveService:
             stmt = (
                 select(LeaveApplication, Student)
                 .join(Student, LeaveApplication.student_id == Student.id)
-                .where(LeaveApplication.status == "审批中(学院)")
+                .where(LeaveApplication.status == LeaveStatus.PENDING_COLLEGE.value)
                 .order_by(LeaveApplication.submit_time.asc())
             )
         else:
@@ -218,7 +219,10 @@ class LeaveService:
                 select(LeaveApplication, Student)
                 .join(Student, LeaveApplication.student_id == Student.id)
                 .where(
-                    LeaveApplication.status.in_(["审批中(辅导员)", "审批中(学院)"])
+                    LeaveApplication.status.in_([
+                        LeaveStatus.PENDING_COUNSELOR.value,
+                        LeaveStatus.PENDING_COLLEGE.value,
+                    ])
                 )
                 .order_by(LeaveApplication.submit_time.asc())
             )

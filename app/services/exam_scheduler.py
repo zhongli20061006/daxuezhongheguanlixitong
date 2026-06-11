@@ -17,6 +17,39 @@ from app.utils.period_parser import is_period_overlap as do_periods_overlap
 TIME_SLOTS = ["8:00-10:00", "10:30-12:30", "14:00-16:00", "16:30-18:30", "18:30-20:30"]
 
 
+def _parse_semester_to_base_date(semester: str) -> date:
+    """
+    从学期字符串解析考试基准日期（最后两周的起始周一）
+    格式: "YYYY-YYYY-N" 如 "2024-2025-1"
+    - term "1" (秋季): 次年1月第一个周一
+    - term "2" (春季): 次年6月第一个周一
+    """
+    parts = semester.split("-")
+    if len(parts) != 3:
+        # 回退到默认值
+        return date(2025, 1, 6)
+    try:
+        start_year = int(parts[0])
+        term = parts[2]
+    except (ValueError, IndexError):
+        return date(2025, 1, 6)
+
+    if term == "1":
+        year = start_year + 1
+        month = 1
+    elif term == "2":
+        year = start_year + 1
+        month = 6
+    else:
+        return date(2025, 1, 6)
+
+    first_day = date(year, month, 1)
+    # 找到当月第一个周一
+    # weekday(): 0=Monday ... 6=Sunday
+    days_to_monday = (7 - first_day.weekday()) % 7
+    return first_day + timedelta(days=days_to_monday)
+
+
 class ExamScheduler:
 
     async def generate(self, db: AsyncSession, semester: str = "2024-2025-1") -> dict:
@@ -55,11 +88,9 @@ class ExamScheduler:
         )
         all_rooms = c_result.scalars().all()
 
-        # 4. 准备时间槽（18-19周，周一~周五）
+        # 4. 根据学期动态计算考试日期（学期末最后两周）
+        base = _parse_semester_to_base_date(semester)
         exam_dates = []
-        # 根据学期推算考试周（简化：固定为学期末第18-19周）
-        import calendar
-        base = date(2025, 1, 6)  # 2024-2025-1 第18周周一
         for d in range(10):  # 10个工作日（2周）
             exam_dates.append(base + timedelta(days=d))
 
@@ -80,6 +111,16 @@ class ExamScheduler:
             if enr == 0:
                 continue
 
+            # 提前查询该课程的选课学生（用于冲突检测）
+            enrolled_students = await db.execute(
+                select(CourseSelection).where(
+                    CourseSelection.schedule_id == sch.id,
+                    CourseSelection.status == 1,
+                )
+            )
+            enrolled_list = enrolled_students.scalars().all()
+            enrolled_ids = [cs.student_id for cs in enrolled_list]
+
             # 找合适的教室
             suitable_room = None
             for room in all_rooms:
@@ -90,16 +131,26 @@ class ExamScheduler:
             if not suitable_room:
                 continue
 
-            # 找空闲时间槽
+            # 找空闲时间槽（同时检测学生时间冲突）
             found = False
+            chosen_d = None
+            chosen_slot = None
             for d in exam_dates:
                 d_str = d.strftime("%Y-%m-%d")
                 for slot in TIME_SLOTS:
                     key = (d_str, slot, suitable_room.id)
                     if key in occupied:
                         continue
-                    # 检查学生冲突（简化：任意学生冲突即跳过）
+                    # 检查已排考试中是否有该课程的学生在同一时段冲突
+                    has_conflict = any(
+                        (sid, d_str, slot) in student_busy
+                        for sid in enrolled_ids
+                    )
+                    if has_conflict:
+                        continue
                     occupied[key] = True
+                    chosen_d = d
+                    chosen_slot = slot
                     found = True
                     break
                 if found:
@@ -107,6 +158,8 @@ class ExamScheduler:
 
             if not found:
                 continue
+
+            d_str = chosen_d.strftime("%Y-%m-%d")
 
             # 创建考试记录
             exam = Exam(
@@ -125,28 +178,22 @@ class ExamScheduler:
             arrangement = ExamArrangement(
                 exam_id=exam.id,
                 classroom_id=suitable_room.id,
-                date=d,
-                start_time=slot.split("-")[0],
-                end_time=slot.split("-")[1],
+                date=chosen_d,
+                start_time=chosen_slot.split("-")[0],
+                end_time=chosen_slot.split("-")[1],
                 invigilator_id=teacher_map.get(sch.teacher_id, str(sch.teacher_id)),
             )
             db.add(arrangement)
 
             # 分配学生座位
-            enrolled_students = await db.execute(
-                select(CourseSelection).where(
-                    CourseSelection.schedule_id == sch.id,
-                    CourseSelection.status == 1,
-                )
-            )
             seat = 1
-            for cs in enrolled_students.scalars().all():
+            for cs in enrolled_list:
                 db.add(ExamStudent(
                     exam_id=exam.id,
                     student_id=cs.student_id,
                     seat_no=seat,
                 ))
-                student_busy[(cs.student_id, d_str, slot)] = True
+                student_busy[(cs.student_id, d_str, chosen_slot)] = True
                 seat += 1
 
             created_exams.append(exam)

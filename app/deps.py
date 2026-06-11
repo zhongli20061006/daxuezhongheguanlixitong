@@ -1,18 +1,19 @@
 """
 认证依赖模块
 提供 JWT 令牌生成/解析、get_current_user 依赖注入、角色校验中间件
+兼容两种 token 携带方式：httpOnly cookie（主选）和 Authorization Header（回退）
 """
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Cookie, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 
 from app.config import settings
 
-# 从 Authorization Header 提取 Bearer Token 的 FastAPI 安全方案
-security_scheme = HTTPBearer()
+# 从 Authorization Header 提取 Bearer Token 的 FastAPI 安全方案（回退方案）
+security_scheme = HTTPBearer(auto_error=False)
 
 
 def create_access_token(username: str, role: str, role_id: str) -> str:
@@ -36,7 +37,7 @@ def create_access_token(username: str, role: str, role_id: str) -> str:
 def decode_access_token(token: str) -> dict:
     """
     解析并验证 JWT token
-    参数: token — Authorization Header 中提取的 Bearer token
+    参数: token — cookie 或 Authorization Header 中提取的 token
     返回: payload 字典 {"sub", "role", "role_id", "exp"}
     异常: HTTPException 401 — token 过期或被篡改
     """
@@ -51,15 +52,23 @@ def decode_access_token(token: str) -> dict:
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_scheme)],
+    request: Request,
+    access_token: Annotated[str | None, Cookie()] = None,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security_scheme)] = None,
 ) -> dict:
     """
-    FastAPI 依赖注入：从请求头解析 JWT 并返回当前用户信息
+    FastAPI 依赖注入：优先从 httpOnly cookie 读取 JWT，回退到 Authorization Header
     使用方法：user = Depends(get_current_user)
     返回: {"username": str, "role": str, "role_id": str}
     异常: 401 — 未提供 token 或 token 无效
     """
-    payload = decode_access_token(credentials.credentials)
+    token = access_token or (credentials.credentials if credentials else None)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="未提供认证凭证，请先登录",
+        )
+    payload = decode_access_token(token)
     username = payload.get("sub")
     role = payload.get("role")
     role_id = payload.get("role_id")

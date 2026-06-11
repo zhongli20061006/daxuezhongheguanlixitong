@@ -102,8 +102,8 @@ onMounted(async () => {
       plan.value = planRes.plan
       courses.value = planRes.courses || []
     }
-    if (auditRes && auditRes.audits && auditRes.audits.length) {
-      audit.value = auditRes.audits[0]
+    if (auditRes && auditRes.audit) {
+      audit.value = auditRes.audit
     }
   } finally { loading.value = false }
 })

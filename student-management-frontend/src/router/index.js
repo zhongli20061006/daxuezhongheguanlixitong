@@ -29,15 +29,15 @@ const router = createRouter({
 
 const defaultPages = { student: '/schedule', teacher: '/scores/input', staff: '/repairs/manage', admin: '/admin' }
 
-router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('sms_token')
-  const mustChange = localStorage.getItem('sms_must_change') === 'true'
-  const role = localStorage.getItem('sms_role')
+router.beforeEach(async (to, from, next) => {
+  const { useAuthStore } = await import('../stores/auth')
+  const authStore = useAuthStore()
+  const isLoggedIn = await authStore.checkAuth()
 
-  if (!token && to.path !== '/login') return next('/login')
-  if (token && mustChange && to.path !== '/change-password') return next('/change-password')
-  if (to.meta.roles && to.meta.roles.length > 0 && !to.meta.roles.includes(role)) {
-    return next(defaultPages[role] || '/login')
+  if (!isLoggedIn && to.path !== '/login') return next('/login')
+  if (isLoggedIn && authStore.mustChangePassword && to.path !== '/change-password') return next('/change-password')
+  if (to.meta.roles && to.meta.roles.length > 0 && !to.meta.roles.includes(authStore.role)) {
+    return next(defaultPages[authStore.role] || '/login')
   }
   next()
 })

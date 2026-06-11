@@ -3,7 +3,7 @@
 存储系统自动生成的通知消息
 """
 from datetime import datetime
-from sqlalchemy import String, Integer, Text, DateTime, func
+from sqlalchemy import String, Integer, Boolean, Text, DateTime, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
@@ -24,7 +24,7 @@ class NotificationUser(Base):
     __tablename__ = "notification_user"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True, comment="主键")
-    notification_id: Mapped[int] = mapped_column(Integer, nullable=False, comment="通知ID")
+    notification_id: Mapped[int] = mapped_column(ForeignKey("notification.id"), nullable=False, comment="通知ID")
     recipient_role: Mapped[str | None] = mapped_column(String(20), nullable=True, comment="接收角色，NULL表示全局")
     recipient_id: Mapped[str | None] = mapped_column(String(20), nullable=True, comment="接收人ID，NULL表示角色级别通知")
-    is_read: Mapped[bool] = mapped_column(Integer, nullable=False, default=0, comment="是否已读 0-未读 1-已读")
+    is_read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, comment="是否已读")

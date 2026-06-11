@@ -57,10 +57,8 @@ async def read_all(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    notifications = await notification_service.get_user_notifications(
-        db, current_user["username"], current_user["role"], limit=200
+    """单条 UPDATE 批量标记所有未读通知为已读"""
+    count = await notification_service.mark_all_as_read(
+        db, current_user["username"], current_user["role"]
     )
-    for n in notifications:
-        if not n["is_read"]:
-            await notification_service.mark_as_read(db, n["id"])
-    return {"message": "全部标记为已读"}
+    return {"message": f"已标记 {count} 条通知为已读"}

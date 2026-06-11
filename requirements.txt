@@ -11,3 +11,4 @@ pydantic-settings==2.14.1
 alembic==1.18.4
 openpyxl==3.1.5
 python-multipart==0.0.29
+slowapi==0.1.9

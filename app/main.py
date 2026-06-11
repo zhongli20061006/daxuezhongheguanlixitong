@@ -3,13 +3,23 @@ FastAPI 应用入口
 使用 lifespan 管理应用生命周期（替代已废弃的 @app.on_event）
 增加 WebSocket 支持、APScheduler 定时任务、事件总线通知
 """
+import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Request
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt, JWTError
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from app.database import async_engine, Base, AsyncSessionLocal
 from app.config import settings
+from app.middleware.error_handler import RequestIdMiddleware, global_exception_handler
+from app.utils.logger import setup_logging
+
+# 初始化日志（在应用启动前执行一次）
+setup_logging()
+logger = logging.getLogger("student_management")
 
 # 导入所有 Model，确保它们在 Base.metadata 中注册后再执行 create_all
 from app.models import *  # noqa: F403, F401
@@ -44,9 +54,8 @@ def _register_event_handlers():
                     event_type=Events.LEAVE_SUBMITTED,
                 )
                 await session.commit()
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"on_leave_submitted failed: {e}")
+        except Exception:
+            logger.error("on_leave_submitted failed", exc_info=True)
 
     async def on_leave_approved(db=None, leave=None, **kwargs):
         try:
@@ -59,9 +68,8 @@ def _register_event_handlers():
                     event_type=Events.LEAVE_APPROVED,
                 )
                 await session.commit()
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"on_leave_approved failed: {e}")
+        except Exception:
+            logger.error("on_leave_approved failed", exc_info=True)
 
     async def on_leave_rejected(db=None, leave=None, **kwargs):
         try:
@@ -74,9 +82,8 @@ def _register_event_handlers():
                     event_type=Events.LEAVE_REJECTED,
                 )
                 await session.commit()
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"on_leave_rejected failed: {e}")
+        except Exception:
+            logger.error("on_leave_rejected failed", exc_info=True)
 
     event_bus.subscribe(Events.LEAVE_SUBMITTED, on_leave_submitted)
     event_bus.subscribe(Events.LEAVE_APPROVED, on_leave_approved)
@@ -90,14 +97,29 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS 中间件
+# 速率限制 — slowapi 基于 IP 的请求限流
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+
+async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(status_code=429, content={"detail": "请求过于频繁，请稍后再试"})
+
+app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
+
+# CORS 中间件 — 来源从 settings.allowed_origins 配置（逗号分隔），缺省回退到 localhost:5175
+_origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()] if settings.allowed_origins != "*" else ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 请求ID追踪 + 全局异常处理
+app.add_middleware(RequestIdMiddleware)
+app.add_exception_handler(Exception, global_exception_handler)
 
 # 注册所有路由模块
 app.include_router(auth.router)

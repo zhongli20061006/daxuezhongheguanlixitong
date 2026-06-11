@@ -2,12 +2,15 @@
 通知服务
 处理通知的创建、持久化和 WebSocket 实时推送
 """
+import logging
 from datetime import datetime
-from sqlalchemy import select, update
+from sqlalchemy import select, update, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import Notification, NotificationUser
 from app.services.websocket_manager import ws_manager
+
+logger = logging.getLogger("student_management")
 
 
 class NotificationService:
@@ -91,6 +94,22 @@ class NotificationService:
             .where(NotificationUser.notification_id == notification_id)
             .values(is_read=True)
         )
+
+    async def mark_all_as_read(self, db: AsyncSession, user_id: str, role: str) -> int:
+        """批量标记该用户所有未读通知为已读，返回影响行数"""
+        result = await db.execute(
+            update(NotificationUser)
+            .where(
+                NotificationUser.is_read == False,
+                or_(
+                    NotificationUser.recipient_id == user_id,
+                    NotificationUser.recipient_role == role,
+                    and_(NotificationUser.recipient_id.is_(None), NotificationUser.recipient_role.is_(None)),
+                )
+            )
+            .values(is_read=True)
+        )
+        return result.rowcount
 
     async def get_unread_count(
         self,
