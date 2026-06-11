@@ -56,8 +56,8 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db), request: 
         key="access_token",
         value=token,
         httponly=True,
-        samesite="strict",
-        secure=False,  # 生产环境应设为 True（HTTPS）
+        samesite="lax",       # lax 允许跨站导航携带，跨域 AJAX 无法使用但 header 方案不受影响
+        secure=False,          # 生产环境应设为 True（HTTPS）
         max_age=settings.access_token_expire_minutes * 60,
         path="/",
     )

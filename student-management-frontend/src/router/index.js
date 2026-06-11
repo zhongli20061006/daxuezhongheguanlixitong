@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
 const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { roles: [] } },
@@ -30,12 +31,20 @@ const router = createRouter({
 const defaultPages = { student: '/schedule', teacher: '/scores/input', staff: '/repairs/manage', admin: '/admin' }
 
 router.beforeEach(async (to, from, next) => {
-  const { useAuthStore } = await import('../stores/auth')
   const authStore = useAuthStore()
-  const isLoggedIn = await authStore.checkAuth()
 
-  if (!isLoggedIn && to.path !== '/login') return next('/login')
-  if (isLoggedIn && authStore.mustChangePassword && to.path !== '/change-password') return next('/change-password')
+  // 公开页面：不检查登录态
+  if (to.path === '/login') {
+    return next()
+  }
+
+  // 已登录的会话恢复：尝试从 cookie 或 token 还原
+  if (!authStore.isLoggedIn) {
+    await authStore.restoreSession()
+  }
+
+  if (!authStore.isLoggedIn) return next('/login')
+  if (authStore.mustChangePassword && to.path !== '/change-password') return next('/change-password')
   if (to.meta.roles && to.meta.roles.length > 0 && !to.meta.roles.includes(authStore.role)) {
     return next(defaultPages[authStore.role] || '/login')
   }
