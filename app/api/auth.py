@@ -15,7 +15,7 @@ from app.database import get_db
 from app.models import UserCredential
 from app.deps import create_access_token, get_current_user
 from app.schemas.auth import LoginRequest, ChangePasswordRequest
-from app.main import limiter
+from app.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 

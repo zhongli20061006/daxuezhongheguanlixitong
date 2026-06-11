@@ -9,11 +9,10 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt, JWTError
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.database import async_engine, Base, AsyncSessionLocal
 from app.config import settings
+from app.limiter import limiter
 from app.middleware.error_handler import RequestIdMiddleware, global_exception_handler
 from app.utils.logger import setup_logging
 
@@ -101,7 +100,6 @@ app = FastAPI(
 )
 
 # 速率限制 — slowapi 基于 IP 的请求限流
-limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
 
