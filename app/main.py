@@ -35,8 +35,11 @@ from app.services.event_bus import Events
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # 开发模式：自动建表（生产环境应使用 `alembic upgrade head`）
+    if settings.debug_sql:
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Dev mode: tables auto-created via create_all")
     _register_event_handlers()
     yield
     await async_engine.dispose()
