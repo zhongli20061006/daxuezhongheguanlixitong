@@ -7,6 +7,7 @@
       </div>
       <div class="nav-center" v-if="!mobile">
         <template v-if="auth.role === 'student'">
+          <router-link to="/dashboard" class="nav-item">首页</router-link>
           <router-link to="/schedule" class="nav-item">我的课表</router-link>
           <router-link to="/selection" class="nav-item">选课中心</router-link>
           <router-link to="/leaves" class="nav-item">请假申请</router-link>
@@ -40,7 +41,7 @@
         <el-popover placement="bottom" :width="360" trigger="click">
           <template #reference>
             <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99" class="bell-btn">
-              <span style="font-size:20px;cursor:pointer">🔔</span>
+              <el-icon :size="20" style="cursor:pointer"><Bell /></el-icon>
             </el-badge>
           </template>
           <div style="max-height:350px;overflow-y:auto">
@@ -78,6 +79,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import router from '../router'
+import { Bell } from '@element-plus/icons-vue'
 import { getNotifications, getUnreadCount, markAllRead as markAllReadApi } from '../api/notification'
 import { ElMessage } from 'element-plus'
 
@@ -92,7 +94,7 @@ const mobileItems = computed(() => {
   const role = auth.role
   const map = {
     student: [
-      { path: '/schedule', label: '我的课表' }, { path: '/selection', label: '选课中心' },
+      { path: '/dashboard', label: '首页' }, { path: '/schedule', label: '我的课表' }, { path: '/selection', label: '选课中心' },
       { path: '/leaves', label: '请假申请' }, { path: '/classrooms', label: '空闲教室' },
       { path: '/scores', label: '我的成绩' }, { path: '/plan', label: '培养方案' }, { path: '/repairs', label: '报修中心' },
     ],

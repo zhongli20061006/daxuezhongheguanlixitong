@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth'
 const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { roles: [] } },
   { path: '/change-password', name: 'ChangePassword', component: () => import('../views/ChangePassword.vue'), meta: { roles: ['student', 'teacher', 'staff', 'admin'] } },
+  { path: '/dashboard', name: 'Dashboard', component: () => import('../views/Dashboard.vue'), meta: { roles: ['student'] } },
   { path: '/schedule', name: 'Schedule', component: () => import('../views/Schedule.vue'), meta: { roles: ['student'] } },
   { path: '/selection', name: 'Selection', component: () => import('../views/Selection.vue'), meta: { roles: ['student'] } },
   { path: '/classrooms', name: 'Classrooms', component: () => import('../views/Classrooms.vue'), meta: { roles: ['student', 'teacher', 'staff', 'admin'] } },
@@ -28,7 +29,7 @@ const router = createRouter({
   routes
 })
 
-const defaultPages = { student: '/schedule', teacher: '/scores/input', staff: '/repairs/manage', admin: '/admin' }
+const defaultPages = { student: '/dashboard', teacher: '/scores/input', staff: '/repairs/manage', admin: '/admin' }
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
