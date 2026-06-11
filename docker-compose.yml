@@ -1,0 +1,53 @@
+version: "3.8"
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: sms-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: student_management
+      MYSQL_CHARSET: utf8mb4
+      MYSQL_COLLATION: utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sms-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql+aiomysql://root:password@db:3306/student_management
+      SYNC_DATABASE_URL: mysql+pymysql://root:password@db:3306/student_management
+      SECRET_KEY: "production-secret-key-change-me-${RANDOM}"
+      ALLOWED_ORIGINS: "http://localhost,http://127.0.0.1"
+      DEBUG_SQL: "false"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./student-management-frontend
+      dockerfile: Dockerfile
+    container_name: sms-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
