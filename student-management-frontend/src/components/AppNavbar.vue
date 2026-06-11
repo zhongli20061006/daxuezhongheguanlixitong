@@ -31,9 +31,7 @@
           </div>
         </el-popover>
         <el-dropdown trigger="click" @command="handleCommand">
-          <el-tooltip :content="auth.name" placement="bottom">
-            <div class="avatar">{{ auth.name.charAt(0) }}</div>
-          </el-tooltip>
+          <div class="avatar" :title="auth.name">{{ auth.name.charAt(0) }}</div>
           <template #dropdown>
             <el-dropdown-item command="profile">个人中心</el-dropdown-item>
             <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>

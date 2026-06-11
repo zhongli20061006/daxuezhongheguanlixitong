@@ -81,7 +81,7 @@ async def delete_notification(
 async def cleanup_read(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    days: int = Query(7, ge=1, le=90, description="清理多少天前的已读通知"),
+    days: int = Query(7, ge=0, le=90, description="清理多少天前的已读通知，0=全部"),
 ):
     """清理指定天数前的所有已读通知（全局，管理员操作推荐加上角色限制）"""
     count = await notification_service.cleanup_read(db, days)
