@@ -3,6 +3,7 @@ FastAPI 应用入口
 使用 lifespan 管理应用生命周期（替代已废弃的 @app.on_event）
 增加 WebSocket 支持、APScheduler 定时任务、事件总线通知
 """
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Request
@@ -41,15 +42,19 @@ async def lifespan(app: FastAPI):
         logger.info("Dev mode: tables auto-created via create_all")
     _register_event_handlers()
     # 启动定时清理任务（每小时清理 7 天前的已读通知）
-    cleanup_task = asyncio.create_task(_scheduled_cleanup())
+    try:
+        cleanup_task = asyncio.create_task(_scheduled_cleanup())
+    except RuntimeError:
+        logger.warning("Scheduled cleanup not started (no running event loop)")
+        cleanup_task = None
     yield
-    cleanup_task.cancel()
+    if cleanup_task:
+        cleanup_task.cancel()
     await async_engine.dispose()
 
 
 async def _scheduled_cleanup():
     """每小时清理一次 7 天前的已读通知"""
-    import asyncio
     while True:
         await asyncio.sleep(3600)
         try:
