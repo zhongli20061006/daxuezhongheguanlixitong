@@ -10,17 +10,21 @@
       <div style="flex:1">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <span style="color:#6B7280;font-size:13px">共 {{ filteredItems.length }} 条</span>
-          <el-button type="primary" size="small" @click="handleReadAll" :disabled="!hasUnread">全部已读</el-button>
+          <div style="display:flex;gap:8px">
+            <el-button type="primary" size="small" @click="handleReadAll" :disabled="!hasUnread">全部已读</el-button>
+            <el-button type="danger" size="small" plain @click="handleCleanup" :disabled="!items.length">清除已读</el-button>
+          </div>
         </div>
-        <div v-for="item in filteredItems" :key="item.id" :class="['notif-item',{unread:!item.is_read}]" @click="handleRead(item)">
+        <div v-for="item in filteredItems" :key="item.id" :class="['notif-item',{unread:!item.is_read}]">
           <div class="notif-flex">
-            <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0" @click="handleRead(item)">
               <div v-if="!item.is_read" class="unread-dot"></div>
               <span :style="{fontWeight:item.is_read?400:700}">{{ item.title }}</span>
             </div>
             <span style="color:#9CA3AF;font-size:12px;white-space:nowrap">{{ item.created_at }}</span>
+            <el-button text type="danger" size="small" @click.stop="handleDelete(item)">删除</el-button>
           </div>
-          <div style="color:#6B7280;font-size:13px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">{{ item.content }}</div>
+          <div style="color:#6B7280;font-size:13px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical" @click="handleRead(item)">{{ item.content }}</div>
         </div>
         <el-empty v-if="!filteredItems.length" description="暂无通知" :image-size="80" />
       </div>
@@ -30,8 +34,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getNotifications, markAsRead, markAllRead } from '../api/notification'
-import { ElMessage } from 'element-plus'
+import { getNotifications, markAsRead, markAllRead, deleteNotification, cleanupRead } from '../api/notification'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const items = ref([]); const activeCategory = ref('all')
 const categories = computed(() => {
@@ -61,6 +65,22 @@ async function handleRead(item) {
 }
 async function handleReadAll() {
   try { await markAllRead(); items.value.forEach(i => i.is_read = true); ElMessage.success('已全部已读') } catch {}
+}
+async function handleDelete(item) {
+  try {
+    await ElMessageBox.confirm('确定删除该通知？', '确认', { type: 'warning' })
+    await deleteNotification(item.id)
+    items.value = items.value.filter(i => i.id !== item.id)
+    ElMessage.success('已删除')
+  } catch {}
+}
+async function handleCleanup() {
+  try {
+    await ElMessageBox.confirm('将清除所有 7 天前的已读通知，确定？', '清理确认', { type: 'warning' })
+    const r = await cleanupRead(7)
+    await load()
+    ElMessage.success(r.message || '清理完成')
+  } catch {}
 }
 onMounted(load)
 </script>

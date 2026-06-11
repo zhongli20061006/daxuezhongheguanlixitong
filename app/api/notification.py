@@ -5,7 +5,7 @@ GET /notification/unread-count    — 未读数量
 POST /notification/{id}/read      — 标记已读
 POST /notification/read-all       — 全部已读
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -62,3 +62,27 @@ async def read_all(
         db, current_user["username"], current_user["role"]
     )
     return {"message": f"已标记 {count} 条通知为已读"}
+
+
+@router.delete("/{notification_id}", summary="删除通知")
+async def delete_notification(
+    notification_id: int,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """删除指定通知（仅删除当前用户的记录，不影响其他用户）"""
+    ok = await notification_service.delete_notification(db, notification_id, current_user["username"])
+    if not ok:
+        raise HTTPException(status_code=404, detail="通知不存在或无权删除")
+    return {"message": "已删除"}
+
+
+@router.post("/cleanup", summary="清理已读通知")
+async def cleanup_read(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    days: int = Query(7, ge=1, le=90, description="清理多少天前的已读通知"),
+):
+    """清理指定天数前的所有已读通知（全局，管理员操作推荐加上角色限制）"""
+    count = await notification_service.cleanup_read(db, days)
+    return {"message": f"已清理 {count} 条记录", "deleted": count}

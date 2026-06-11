@@ -15,3 +15,11 @@ export function markAsRead(id) {
 export function markAllRead() {
   return api.post('/notification/read-all')
 }
+
+export function deleteNotification(id) {
+  return api.delete(`/notification/${id}`)
+}
+
+export function cleanupRead(days = 7) {
+  return api.post('/notification/cleanup', null, { params: { days } })
+}

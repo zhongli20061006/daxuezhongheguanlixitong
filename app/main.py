@@ -40,8 +40,26 @@ async def lifespan(app: FastAPI):
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Dev mode: tables auto-created via create_all")
     _register_event_handlers()
+    # 启动定时清理任务（每小时清理 7 天前的已读通知）
+    cleanup_task = asyncio.create_task(_scheduled_cleanup())
     yield
+    cleanup_task.cancel()
     await async_engine.dispose()
+
+
+async def _scheduled_cleanup():
+    """每小时清理一次 7 天前的已读通知"""
+    import asyncio
+    while True:
+        await asyncio.sleep(3600)
+        try:
+            async with AsyncSessionLocal() as session:
+                count = await notification_service.cleanup_read(session, days=7)
+                await session.commit()
+                if count:
+                    logger.info("Scheduled cleanup: removed %s records", count)
+        except Exception:
+            logger.warning("Scheduled cleanup failed", exc_info=True)
 
 
 def _register_event_handlers():

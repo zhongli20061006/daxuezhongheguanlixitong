@@ -3,8 +3,8 @@
 处理通知的创建、持久化和 WebSocket 实时推送
 """
 import logging
-from datetime import datetime
-from sqlalchemy import select, update, and_, or_
+from datetime import datetime, timedelta
+from sqlalchemy import select, update, delete, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.notification import Notification, NotificationUser
@@ -128,6 +128,56 @@ class NotificationService:
             )
         )
         return len(result.scalars().all())
+
+    async def delete_notification(self, db: AsyncSession, notification_id: int, user_id: str) -> bool:
+        """删除指定用户的一条通知记录"""
+        result = await db.execute(
+            delete(NotificationUser).where(
+                NotificationUser.notification_id == notification_id,
+                NotificationUser.recipient_id == user_id,
+            )
+        )
+        deleted = result.rowcount
+        if deleted:
+            # 如果没有其他用户引用此通知，一并删除 Notification 本体
+            remaining = await db.execute(
+                select(NotificationUser).where(NotificationUser.notification_id == notification_id)
+            )
+            if not remaining.scalars().first():
+                await db.execute(delete(Notification).where(Notification.id == notification_id))
+                logger.debug("Deleted orphan notification #%s", notification_id)
+        return deleted > 0
+
+    async def cleanup_read(self, db: AsyncSession, days: int = 7) -> int:
+        """清理指定天数之前的已读通知，返回删除条数"""
+        threshold = datetime.now() - timedelta(days=days)
+        # 先查出符合条件的 notification_id
+        result = await db.execute(
+            select(Notification.id).where(Notification.created_at < threshold)
+        )
+        old_ids = [row[0] for row in result.all()]
+        if not old_ids:
+            return 0
+        # 删除已读的 notification_user 记录
+        nu_result = await db.execute(
+            delete(NotificationUser).where(
+                NotificationUser.notification_id.in_(old_ids),
+                NotificationUser.is_read == True,
+            )
+        )
+        deleted = nu_result.rowcount
+        # 清理孤立的 Notification
+        orphan_result = await db.execute(
+            delete(Notification).where(
+                Notification.id.in_(old_ids),
+                ~Notification.id.in_(
+                    select(NotificationUser.notification_id).where(NotificationUser.notification_id.in_(old_ids))
+                )
+            )
+        )
+        orph = orphan_result.rowcount
+        logger.info("Cleanup: deleted %s read notification_user records, %s orphan notifications", deleted, orph)
+        return deleted + orph
 
 
 notification_service = NotificationService()
