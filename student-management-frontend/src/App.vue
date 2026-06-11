@@ -1,8 +1,8 @@
 <template>
-  <div class="app-container">
-    <AppNavbar v-if="showNavbar" />
+  <AppNavbar v-if="showNavbar">
     <router-view />
-  </div>
+  </AppNavbar>
+  <router-view v-else />
 </template>
 
 <script setup>
@@ -22,5 +22,4 @@ onMounted(() => authStore.restoreSession())
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Microsoft YaHei', sans-serif; background: #f5f7fa; }
-.app-container { min-height: 100vh; }
 </style>

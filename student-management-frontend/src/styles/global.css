@@ -8,6 +8,15 @@
 .stat-card .stat-value { font-size: 28px; font-weight: 700; color: #1F2937; }
 .stat-card .stat-label { font-size: 13px; color: #6B7280; }
 
+/* ───── Sidebar layout support ───── */
+/* The app-main is provided by AppNavbar's scoped styles.
+   This ensures page-container content works within the sidebar layout. */
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* ───── Responsive ───── */
 @media (max-width: 768px) {
   .page-container { padding: 12px; }
   .page-title { font-size: 20px; }

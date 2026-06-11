@@ -1,43 +1,15 @@
 <template>
-  <div class="navbar">
-    <div class="nav-inner">
-      <div class="nav-left">
-        <el-button class="hamburger" text @click="mobileOpen = !mobileOpen" v-if="mobile">☰</el-button>
-        <span class="nav-brand">大学生管理系统</span>
+  <div class="app-layout">
+    <!-- Header Bar (48px) -->
+    <header class="app-header">
+      <div class="header-left">
+        <el-icon class="toggle-btn" :size="20" @click="collapsed = !collapsed">
+          <Fold v-if="!collapsed" />
+          <Expand v-else />
+        </el-icon>
+        <span class="header-title">大学生管理系统</span>
       </div>
-      <div class="nav-center" v-if="!mobile">
-        <template v-if="auth.role === 'student'">
-          <router-link to="/dashboard" class="nav-item">首页</router-link>
-          <router-link to="/schedule" class="nav-item">我的课表</router-link>
-          <router-link to="/selection" class="nav-item">选课中心</router-link>
-          <router-link to="/leaves" class="nav-item">请假申请</router-link>
-          <router-link to="/classrooms" class="nav-item">空闲教室</router-link>
-          <router-link to="/scores" class="nav-item">我的成绩</router-link>
-          <router-link to="/plan" class="nav-item">培养方案</router-link>
-          <router-link to="/repairs" class="nav-item">报修中心</router-link>
-          <router-link to="/my-exams" class="nav-item">我的考试</router-link>
-        </template>
-        <template v-if="auth.role === 'teacher'">
-          <router-link to="/classrooms" class="nav-item">空闲教室</router-link>
-          <router-link to="/scores/input" class="nav-item">成绩录入</router-link>
-          <router-link to="/advisor" class="nav-item">请假审批</router-link>
-          <router-link to="/repairs" class="nav-item">报修中心</router-link>
-          <router-link to="/my-invigilations" class="nav-item">监考安排</router-link>
-        </template>
-        <template v-if="auth.role === 'staff'">
-          <router-link to="/classrooms" class="nav-item">空闲教室</router-link>
-          <router-link to="/repairs/manage" class="nav-item">报修管理</router-link>
-          <router-link to="/repairs" class="nav-item">报修中心</router-link>
-        </template>
-        <template v-if="auth.role === 'admin'">
-          <router-link to="/admin" class="nav-item">管理后台</router-link>
-          <router-link to="/advisor" class="nav-item">请假审批</router-link>
-          <router-link to="/repairs/manage" class="nav-item">报修管理</router-link>
-          <router-link to="/classrooms" class="nav-item">空闲教室</router-link>
-          <router-link to="/repairs" class="nav-item">报修中心</router-link>
-        </template>
-      </div>
-      <div class="nav-right">
+      <div class="header-right">
         <el-popover placement="bottom" :width="360" trigger="click">
           <template #reference>
             <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99" class="bell-btn">
@@ -58,66 +30,192 @@
             </div>
           </div>
         </el-popover>
-        <router-link to="/profile">
+        <el-dropdown trigger="click" @command="handleCommand">
           <el-tooltip :content="auth.name" placement="bottom">
             <div class="avatar">{{ auth.name.charAt(0) }}</div>
           </el-tooltip>
-        </router-link>
-        <router-link to="/profile" class="logout-btn" style="color:rgba(255,255,255,.7);text-decoration:none;font-size:13px">个人中心</router-link>
-        <el-button text class="logout-btn" @click="handleLogout">退出</el-button>
+          <template #dropdown>
+            <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+            <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+          </template>
+        </el-dropdown>
       </div>
+    </header>
+
+    <!-- Body: Sidebar + Content -->
+    <div class="app-body">
+      <!-- Sidebar -->
+      <aside class="app-sidebar" :class="{ collapsed }">
+        <nav class="sidebar-nav">
+          <!-- Role-specific menu items -->
+          <div class="sidebar-section">
+            <router-link
+              v-for="item in menuItems"
+              :key="item.path"
+              :to="item.path"
+              class="sidebar-item"
+              :class="{ active: isActive(item.path) }"
+            >
+              <el-icon><component :is="item.icon" /></el-icon>
+              <span class="sidebar-label">{{ item.label }}</span>
+            </router-link>
+          </div>
+
+          <!-- Divider + common items -->
+          <div class="sidebar-divider"></div>
+          <div class="sidebar-section">
+            <router-link
+              to="/notifications"
+              class="sidebar-item"
+              :class="{ active: isActive('/notifications') }"
+            >
+              <el-icon>
+                <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99" class="sidebar-badge">
+                  <Bell />
+                </el-badge>
+              </el-icon>
+              <span class="sidebar-label">通知中心</span>
+            </router-link>
+            <router-link
+              to="/profile"
+              class="sidebar-item"
+              :class="{ active: isActive('/profile') }"
+            >
+              <el-icon><User /></el-icon>
+              <span class="sidebar-label">个人中心</span>
+            </router-link>
+          </div>
+        </nav>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="app-main" :class="{ collapsed }">
+        <slot />
+      </main>
     </div>
-    <div v-if="mobile && mobileOpen" class="mobile-menu">
-      <router-link v-for="item in mobileItems" :key="item.path" :to="item.path" class="mobile-item" @click="mobileOpen=false">{{ item.label }}</router-link>
-      <router-link to="/notifications" class="mobile-item" @click="mobileOpen=false">通知中心</router-link>
-      <div class="mobile-item" @click="handleLogout">退出登录</div>
+
+    <!-- Mobile Bottom Tabs (≤768px) -->
+    <div class="mobile-tabs">
+      <router-link
+        v-for="tab in mobileTabs"
+        :key="tab.path"
+        :to="tab.path"
+        class="mobile-tab"
+        :class="{ active: isActive(tab.path) }"
+      >
+        <el-icon :size="22">
+          <el-badge
+            v-if="tab.badge"
+            :value="unreadCount"
+            :hidden="unreadCount === 0"
+            :max="99"
+          >
+            <component :is="tab.icon" />
+          </el-badge>
+          <component v-else :is="tab.icon" />
+        </el-icon>
+        <span class="mobile-label">{{ tab.label }}</span>
+      </router-link>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import router from '../router'
-import { Bell } from '@element-plus/icons-vue'
+import {
+  HomeFilled, Calendar, Tickets, Document, OfficeBuilding,
+  DataAnalysis, Reading, Tools, Timer, Bell, User,
+  Management, Expand, Fold
+} from '@element-plus/icons-vue'
 import { getNotifications, getUnreadCount, markAllRead as markAllReadApi } from '../api/notification'
-import { ElMessage } from 'element-plus'
 
 const auth = useAuthStore()
+const route = useRoute()
+const collapsed = ref(false)
 const unreadCount = ref(0)
 const latestNotifications = ref([])
-const mobile = ref(window.innerWidth <= 768)
-const mobileOpen = ref(false)
-let ws = null, pollTimer = null
+let ws = null
+let pollTimer = null
 
-const mobileItems = computed(() => {
+/* ───── Menu items by role ───── */
+const menuItems = computed(() => {
   const role = auth.role
-  const map = {
+  const menus = {
     student: [
-      { path: '/dashboard', label: '首页' }, { path: '/schedule', label: '我的课表' }, { path: '/selection', label: '选课中心' },
-      { path: '/leaves', label: '请假申请' }, { path: '/classrooms', label: '空闲教室' },
-      { path: '/scores', label: '我的成绩' }, { path: '/plan', label: '培养方案' }, { path: '/repairs', label: '报修中心' },
+      { path: '/dashboard',    label: '首页',       icon: HomeFilled },
+      { path: '/schedule',     label: '课表',       icon: Calendar },
+      { path: '/selection',    label: '选课中心',    icon: Tickets },
+      { path: '/leaves',       label: '请假申请',    icon: Document },
+      { path: '/classrooms',   label: '空闲教室',    icon: OfficeBuilding },
+      { path: '/scores',       label: '我的成绩',    icon: DataAnalysis },
+      { path: '/plan',         label: '培养方案',    icon: Reading },
+      { path: '/repairs',      label: '报修中心',    icon: Tools },
+      { path: '/my-exams',     label: '我的考试',    icon: Timer },
     ],
     teacher: [
-      { path: '/classrooms', label: '空闲教室' }, { path: '/scores/input', label: '成绩录入' },
-      { path: '/advisor', label: '请假审批' }, { path: '/repairs', label: '报修中心' },
+      { path: '/classrooms',       label: '空闲教室',    icon: OfficeBuilding },
+      { path: '/scores/input',     label: '成绩录入',    icon: DataAnalysis },
+      { path: '/advisor',          label: '请假审批',    icon: Management },
+      { path: '/repairs',          label: '报修中心',    icon: Tools },
+      { path: '/my-invigilations', label: '监考安排',    icon: Timer },
     ],
     staff: [
-      { path: '/classrooms', label: '空闲教室' }, { path: '/repairs/manage', label: '报修管理' },
-      { path: '/repairs', label: '报修中心' },
+      { path: '/classrooms',    label: '空闲教室',    icon: OfficeBuilding },
+      { path: '/repairs/manage', label: '报修管理',    icon: Tools },
+      { path: '/repairs',       label: '报修中心',    icon: Tools },
     ],
     admin: [
-      { path: '/admin', label: '管理后台' }, { path: '/advisor', label: '请假审批' },
-      { path: '/repairs/manage', label: '报修管理' }, { path: '/classrooms', label: '空闲教室' },
-      { path: '/repairs', label: '报修中心' },
+      { path: '/admin',          label: '管理后台',    icon: Management },
+      { path: '/advisor',        label: '请假审批',    icon: Management },
+      { path: '/repairs/manage', label: '报修管理',    icon: Tools },
+      { path: '/classrooms',     label: '空闲教室',    icon: OfficeBuilding },
+      { path: '/repairs',        label: '报修中心',    icon: Tools },
     ],
   }
-  return map[role] || []
+  return menus[role] || []
 })
 
-function handleLogout() { auth.logout(); router.push('/login') }
+/* ───── Mobile bottom tabs ───── */
+const mobileTabs = computed(() => {
+  const role = auth.role
+  const defaultPage = role === 'student' ? '/dashboard'
+    : role === 'teacher' ? '/scores/input'
+    : role === 'staff' ? '/repairs/manage'
+    : '/admin'
+
+  let secondTab
+  switch (role) {
+    case 'student': secondTab = { path: '/schedule', label: '课表', icon: Calendar }; break
+    case 'teacher': secondTab = { path: '/scores/input', label: '成绩', icon: DataAnalysis }; break
+    case 'staff':   secondTab = { path: '/repairs/manage', label: '管理', icon: Tools }; break
+    default:        secondTab = { path: '/admin', label: '管理', icon: Management }
+  }
+
+  return [
+    { path: defaultPage, label: '首页', icon: HomeFilled },
+    secondTab,
+    { path: '/notifications', label: '通知', icon: Bell, badge: true },
+    { path: '/profile', label: '我的', icon: User },
+  ]
+})
+
+/* ───── Active route matching ───── */
+function isActive(path) {
+  return route.path === path || route.path.startsWith(path + '/')
+}
+
+/* ───── Event handlers ───── */
+function handleCommand(cmd) {
+  if (cmd === 'profile') router.push('/profile')
+  else if (cmd === 'logout') { auth.logout(); router.push('/login') }
+}
+
 function goNotifications() { router.push('/notifications') }
 
+/* ───── Notification logic ───── */
 async function loadNotifications() {
   try {
     const [unreadRes, listRes] = await Promise.all([
@@ -126,46 +224,284 @@ async function loadNotifications() {
     ])
     unreadCount.value = typeof unreadRes === 'number' ? unreadRes : (unreadRes?.count ?? 0)
     latestNotifications.value = listRes.notifications || []
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 async function markAllRead() {
-  try { await markAllReadApi(); unreadCount.value = 0 } catch {}
+  try { await markAllReadApi(); unreadCount.value = 0 } catch { /* ignore */ }
 }
 
 function connectWS() {
   if (!auth.token) return
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
   ws = new WebSocket(`${protocol}://${window.location.hostname}:8000/ws?token=${auth.token}`)
-  ws.onmessage = (e) => { try { const m = JSON.parse(e.data); if (m.type === 'notification') unreadCount.value++ } catch {} }
+  ws.onmessage = (e) => {
+    try {
+      const m = JSON.parse(e.data)
+      if (m.type === 'notification') unreadCount.value++
+    } catch { /* ignore */ }
+  }
   ws.onclose = () => { setTimeout(connectWS, 5000) }
 }
 
-window.addEventListener('resize', () => { mobile.value = window.innerWidth <= 768 })
+onMounted(() => {
+  loadNotifications()
+  connectWS()
+  pollTimer = setInterval(loadNotifications, 30000)
+})
 
-onMounted(() => { loadNotifications(); connectWS(); pollTimer = setInterval(loadNotifications, 30000) })
-onUnmounted(() => { if (ws) ws.close(); if (pollTimer) clearInterval(pollTimer) })
+onUnmounted(() => {
+  if (ws) ws.close()
+  if (pollTimer) clearInterval(pollTimer)
+})
 </script>
 
 <style scoped>
-@import '../styles/global.css';
-.navbar { background:#1E3A5F; color:#fff; }
-.nav-inner { max-width:1200px; margin:0 auto; display:flex; align-items:center; height:56px; padding:0 24px; gap:32px; }
-.nav-left { display:flex; align-items:center; gap:12px; }
-.nav-brand { font-size:18px; font-weight:700; white-space:nowrap; }
-.nav-center { display:flex; gap:4px; flex:1; }
-.nav-item { color:rgba(255,255,255,.7); text-decoration:none; font-size:14px; padding:6px 12px; border-radius:4px; }
-.nav-item:hover { color:#fff; background:rgba(255,255,255,.1); }
-.nav-item.router-link-active { color:#fff; background:rgba(255,255,255,.15); border-bottom:3px solid #fff; border-radius:4px 4px 0 0; }
-.nav-right { display:flex; align-items:center; gap:12px; }
-.bell-btn { cursor:pointer; }
-.avatar { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; cursor:default; }
-.logout-btn { color:rgba(255,255,255,.7) !important; }
-.logout-btn:hover { color:#fff !important; }
-.hamburger { color:#fff !important; font-size:20px; }
-.mobile-menu { background:#1E3A5F; padding:8px 16px 16px; }
-.mobile-item { display:block; color:rgba(255,255,255,.85); padding:10px 8px; text-decoration:none; font-size:14px; border-bottom:1px solid rgba(255,255,255,.08); }
-.notif-item { padding:8px 0; border-bottom:1px solid #f0f0f0; cursor:pointer; }
-.notif-item:last-child { border-bottom:none; }
-.notif-item:hover { background:#f9fafb; }
+/* ───── Layout ───── */
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fa;
+}
+
+/* ───── Header (48px) ───── */
+.app-header {
+  height: 48px;
+  min-height: 48px;
+  background: #1E3A5F;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 100;
+  position: relative;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggle-btn {
+  cursor: pointer;
+  color: rgba(255,255,255,0.8);
+  transition: color 0.2s;
+  padding: 4px;
+  border-radius: 4px;
+}
+.toggle-btn:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.1);
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.bell-btn {
+  cursor: pointer;
+  line-height: 1;
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.avatar:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* ───── Body (sidebar + content) ───── */
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ───── Sidebar ───── */
+.app-sidebar {
+  width: 200px;
+  min-height: calc(100vh - 48px);
+  background: #1a1a2e;
+  transition: width 0.25s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-shrink: 0;
+}
+
+.app-sidebar.collapsed {
+  width: 60px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+  margin: 8px 12px;
+}
+
+/* ───── Sidebar Items ───── */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  color: rgba(255,255,255,0.65);
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 14px;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  border-left: 3px solid transparent;
+  white-space: nowrap;
+}
+.sidebar-item:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+.sidebar-item.active {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  border-left-color: #409EFF;
+}
+.sidebar-item .el-icon {
+  font-size: 20px;
+  margin-right: 12px;
+  min-width: 20px;
+}
+
+.sidebar-label {
+  opacity: 1;
+  transition: opacity 0.2s;
+}
+
+/* Collapsed state */
+.app-sidebar.collapsed .sidebar-item {
+  justify-content: center;
+  padding: 14px 0;
+}
+.app-sidebar.collapsed .sidebar-item .el-icon {
+  margin-right: 0;
+}
+.app-sidebar.collapsed .sidebar-label {
+  display: none;
+}
+
+/* Sidebar badge (通知中心) */
+.sidebar-badge :deep(.el-badge__content) {
+  border: none;
+  font-size: 11px;
+  height: 16px;
+  line-height: 16px;
+  min-width: 16px;
+  padding: 0 4px;
+}
+
+/* ───── Main Content ───── */
+.app-main {
+  flex: 1;
+  min-height: calc(100vh - 48px);
+  transition: margin-left 0.25s ease;
+  overflow-y: auto;
+}
+
+/* ───── Mobile Bottom Tabs ───── */
+.mobile-tabs {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-top: 1px solid #e4e7ed;
+  height: 56px;
+  z-index: 1000;
+  align-items: center;
+  justify-content: space-around;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.mobile-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #909399;
+  text-decoration: none;
+  font-size: 11px;
+  transition: color 0.2s;
+  flex: 1;
+  height: 100%;
+  position: relative;
+}
+.mobile-tab.active {
+  color: #409EFF;
+}
+.mobile-label {
+  line-height: 1;
+}
+
+/* ───── Responsive ───── */
+@media (max-width: 768px) {
+  .app-sidebar {
+    display: none;
+  }
+  .mobile-tabs {
+    display: flex;
+  }
+  .app-main {
+    padding-bottom: 56px;
+  }
+  .app-main.collapsed {
+    /* no sidebar on mobile, so no margin change needed */
+  }
+}
+
+/* ───── Notification popover (inherited style) ───── */
+.notif-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+.notif-item:last-child {
+  border-bottom: none;
+}
+.notif-item:hover {
+  background: #f9fafb;
+}
+
+/* ───── Element Plus dropdown trigger inline fix ───── */
+.el-dropdown {
+  line-height: 1;
+}
 </style>
