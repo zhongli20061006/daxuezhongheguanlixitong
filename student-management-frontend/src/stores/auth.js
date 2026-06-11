@@ -16,7 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const res = await getMeApi()
       role.value = res.role || ''
-      name.value = res.username || ''
+      name.value = res.name || res.username || ''
       userId.value = res.username || ''
       mustChangePassword.value = !!res.must_change_password
       return true
@@ -45,12 +45,12 @@ export const useAuthStore = defineStore('auth', () => {
     // httpOnly cookie 作为同域部署时的补充（当前跨域不可用）
     localStorage.setItem('sms_token', res.access_token)
     localStorage.setItem('sms_role', res.role)
-    localStorage.setItem('sms_name', username)
+    localStorage.setItem('sms_name', res.name || username)
     localStorage.setItem('sms_user_id', username)
     localStorage.setItem('sms_must_change', String(!!res.must_change_password))
     role.value = res.role
     mustChangePassword.value = res.must_change_password
-    name.value = username
+    name.value = res.name || username
     userId.value = username
     return res
   }

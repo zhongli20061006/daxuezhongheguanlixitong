@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import NProgress from 'nprogress'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
@@ -32,10 +33,16 @@ const router = createRouter({
 const defaultPages = { student: '/dashboard', teacher: '/scores/input', staff: '/repairs/manage', admin: '/admin' }
 
 router.beforeEach(async (to, from, next) => {
+  // Don't start progress bar for login → login transitions
+  if (to.path !== '/login' || from.path !== '/login') {
+    NProgress.start()
+  }
+
   const authStore = useAuthStore()
 
   // 公开页面：不检查登录态
   if (to.path === '/login') {
+    NProgress.done()
     return next()
   }
 
@@ -44,12 +51,17 @@ router.beforeEach(async (to, from, next) => {
     await authStore.restoreSession()
   }
 
-  if (!authStore.isLoggedIn) return next('/login')
-  if (authStore.mustChangePassword && to.path !== '/change-password') return next('/change-password')
+  if (!authStore.isLoggedIn) { NProgress.done(); return next('/login') }
+  if (authStore.mustChangePassword && to.path !== '/change-password') { NProgress.done(); return next('/change-password') }
   if (to.meta.roles && to.meta.roles.length > 0 && !to.meta.roles.includes(authStore.role)) {
+    NProgress.done()
     return next(defaultPages[authStore.role] || '/login')
   }
   next()
+})
+
+router.afterEach(() => {
+  NProgress.done()
 })
 
 export default router

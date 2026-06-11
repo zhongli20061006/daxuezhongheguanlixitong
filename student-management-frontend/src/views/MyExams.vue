@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <h2 class="page-title">我的考试</h2>
-    <el-empty v-if="!exams.length" description="暂无考试安排" />
+    <el-empty v-if="!exams.length" description="暂无考试安排" :image-size="80" />
     <div v-else class="exam-timeline">
       <div v-for="e in exams" :key="e.id" class="content-card" style="display:flex;gap:16px;align-items:flex-start">
         <div style="min-width:80px;text-align:center">

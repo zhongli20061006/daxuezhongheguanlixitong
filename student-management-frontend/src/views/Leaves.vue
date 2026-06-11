@@ -45,7 +45,7 @@
           <el-table-column prop="comment" label="意见" min-width="120" show-overflow-tooltip />
           <el-table-column prop="created_at" label="时间" width="140" />
         </el-table>
-        <el-empty v-else description="暂无审批记录" />
+        <el-empty v-else description="暂无审批记录" :image-size="80" />
       </div>
     </el-dialog>
   </div>

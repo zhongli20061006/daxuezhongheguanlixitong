@@ -13,7 +13,7 @@
         <el-table-column prop="submit_time" label="提交时间" width="160" />
         <el-table-column label="操作" width="160" fixed="right"><template #default="{row}"><el-button v-if="row.status==='提交'" type="primary" size="small" @click="updateStatus(row.id,'已接单')">接单</el-button><el-button v-if="row.status==='已接单'" type="warning" size="small" @click="updateStatus(row.id,'处理中')">处理</el-button><el-button v-if="row.status==='处理中'" type="success" size="small" @click="updateStatus(row.id,'已完成')">完成</el-button></template></el-table-column>
       </el-table>
-      <el-empty v-if="!repairs.length&&!loading" description="暂无报修" />
+      <el-empty v-if="!repairs.length&&!loading" description="暂无报修" :image-size="80" />
     </div>
   </div>
 </template>

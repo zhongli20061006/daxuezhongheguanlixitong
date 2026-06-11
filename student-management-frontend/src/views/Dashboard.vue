@@ -10,8 +10,19 @@
       <span class="greeting-text">{{ greetingText }}，{{ auth.name || '用户' }}</span>
     </div>
 
+    <!-- Stats Row Skeleton -->
+    <div v-if="pageLoading" class="stat-cards">
+      <div v-for="i in 4" :key="i" class="stat-card-skeleton skeleton-loading">
+        <div class="skeleton-icon-block"></div>
+        <div style="flex:1">
+          <div class="skeleton-stat-value"></div>
+          <div class="skeleton-stat-label"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Top Stats Row -->
-    <div class="stat-cards">
+    <div v-else class="stat-cards">
       <div class="stat-card">
         <div class="stat-icon stat-icon--blue">
           <el-icon :size="22"><Tickets /></el-icon>
@@ -58,7 +69,17 @@
           <el-icon :size="18"><Clock /></el-icon>
           <span>今日课表</span>
         </div>
-        <el-skeleton :loading="scheduleLoading" animated :count="3">
+        <!-- Schedule skeleton -->
+        <div v-if="scheduleLoading" class="skeleton-card-content">
+          <div v-for="i in 3" :key="i" class="skeleton-schedule-row skeleton-loading">
+            <div class="skeleton-time"></div>
+            <div class="skeleton-schedule-info">
+              <div class="skeleton-schedule-name"></div>
+              <div class="skeleton-schedule-place"></div>
+            </div>
+          </div>
+        </div>
+        <template v-else>
           <template v-if="todayCourses.length">
             <div v-for="course in todayCourses" :key="course.id" class="schedule-item" :style="{ borderLeftColor: '#409EFF' }">
               <div class="schedule-time">{{ periodTimeMap[course.period] || course.period }}</div>
@@ -68,8 +89,8 @@
               </div>
             </div>
           </template>
-          <el-empty v-else description="今日无课" :image-size="60" />
-        </el-skeleton>
+          <el-empty v-else description="今日无课" :image-size="80" />
+        </template>
       </div>
 
       <!-- Recent Notifications -->
@@ -78,7 +99,15 @@
           <el-icon :size="18"><Bell /></el-icon>
           <span>最近通知</span>
         </div>
-        <el-skeleton :loading="notifLoading" animated :count="3">
+        <!-- Notification skeleton -->
+        <div v-if="notifLoading" class="skeleton-card-content">
+          <div v-for="i in 3" :key="i" class="skeleton-notif-row skeleton-loading">
+            <div class="skeleton-notif-title"></div>
+            <div class="skeleton-notif-content"></div>
+            <div class="skeleton-notif-time"></div>
+          </div>
+        </div>
+        <template v-else>
           <template v-if="notifications.length">
             <div v-for="n in notifications" :key="n.id" class="notif-item">
               <div class="notif-title">{{ n.title }}</div>
@@ -86,14 +115,23 @@
               <div class="notif-time">{{ formatTimeAgo(n.created_at) }}</div>
             </div>
           </template>
-          <el-empty v-else description="暂无通知" :image-size="60" />
-        </el-skeleton>
+          <el-empty v-else description="暂无通知" :image-size="80" />
+        </template>
         <div class="view-all" @click="$router.push('/notifications')">查看全部 →</div>
       </div>
     </div>
 
+    <!-- Quick Entry Skeleton -->
+    <div v-if="pageLoading" class="quick-entries">
+      <div v-for="i in 3" :key="i" class="skeleton-entry-card skeleton-loading">
+        <div class="skeleton-entry-icon"></div>
+        <div class="skeleton-entry-label"></div>
+        <div class="skeleton-entry-badge"></div>
+      </div>
+    </div>
+
     <!-- Quick Entry Cards -->
-    <div class="quick-entries">
+    <div v-else class="quick-entries">
       <div class="entry-card entry-card--selection" @click="$router.push('/selection')">
         <div class="entry-border entry-border--blue"></div>
         <el-icon :size="36" color="#409EFF"><Tickets /></el-icon>
@@ -129,6 +167,7 @@ import { Clock, Bell, Tickets, Document, Tools, Sunny, Moon, Coffee } from '@ele
 const auth = useAuthStore()
 
 // ── Data state ──
+const pageLoading = ref(true)
 const scheduleCourses = ref([])
 const scheduleLoading = ref(true)
 const notifications = ref([])
@@ -252,6 +291,8 @@ async function loadData() {
     const v = res[4].value
     unreadCount.value = typeof v === 'number' ? v : (v?.count ?? 0)
   }
+
+  pageLoading.value = false
 }
 
 onMounted(loadData)
@@ -491,5 +532,139 @@ onMounted(loadData)
   .stat-cards { grid-template-columns: 1fr 1fr; gap: 10px; }
   .stat-card { padding: 12px 14px; }
   .stat-value { font-size: 20px; }
+}
+
+/* ── Skeleton Animation ── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.skeleton-loading {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── Stats row skeleton ── */
+.stat-card-skeleton {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.skeleton-icon-block {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+.skeleton-stat-value {
+  height: 24px;
+  width: 60px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.skeleton-stat-label {
+  height: 14px;
+  width: 80px;
+  background: #e5e7eb;
+  border-radius: 4px;
+}
+
+/* ── Schedule skeleton ── */
+.skeleton-card-content {
+  padding: 4px 0;
+}
+.skeleton-schedule-row {
+  display: flex;
+  gap: 14px;
+  padding: 12px 0 12px 12px;
+  margin-bottom: 8px;
+  border-left: 3px solid #e5e7eb;
+  border-radius: 0 6px 6px 0;
+  background: #f9fafb;
+}
+.skeleton-time {
+  width: 80px;
+  height: 16px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.skeleton-schedule-info {
+  flex: 1;
+}
+.skeleton-schedule-name {
+  height: 16px;
+  width: 120px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.skeleton-schedule-place {
+  height: 13px;
+  width: 90px;
+  background: #e5e7eb;
+  border-radius: 4px;
+}
+
+/* ── Notification skeleton ── */
+.skeleton-notif-row {
+  padding: 12px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.skeleton-notif-title {
+  height: 15px;
+  width: 180px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.skeleton-notif-content {
+  height: 13px;
+  width: 260px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.skeleton-notif-time {
+  height: 11px;
+  width: 60px;
+  background: #e5e7eb;
+  border-radius: 4px;
+}
+
+/* ── Quick entry skeleton ── */
+.skeleton-entry-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.skeleton-entry-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #e5e7eb;
+}
+.skeleton-entry-label {
+  height: 16px;
+  width: 80px;
+  background: #e5e7eb;
+  border-radius: 4px;
+}
+.skeleton-entry-badge {
+  height: 22px;
+  width: 60px;
+  background: #e5e7eb;
+  border-radius: 12px;
 }
 </style>

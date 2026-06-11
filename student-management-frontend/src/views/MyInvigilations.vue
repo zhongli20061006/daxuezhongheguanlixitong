@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <h2 class="page-title">监考安排</h2>
-    <el-empty v-if="!exams.length" description="暂无监考安排" />
+    <el-empty v-if="!exams.length" description="暂无监考安排" :image-size="80" />
     <div v-else style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
       <div v-for="e in exams" :key="e.id" class="content-card">
         <div style="font-weight:600;font-size:15px">{{ e.subject_name }}</div>

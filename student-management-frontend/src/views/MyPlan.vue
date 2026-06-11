@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <h2>培养方案</h2>
-    <el-empty v-if="!plan" description="未找到匹配的培养方案" />
+    <el-empty v-if="!plan" description="未找到匹配的培养方案" :image-size="80" />
     <template v-else>
       <el-card style="margin-bottom:16px">
         <el-descriptions :column="3" border>
@@ -45,7 +45,7 @@
 
       <el-divider />
       <h3 style="margin-bottom:12px">限选分组进度</h3>
-      <el-empty v-if="!groups.length" description="无限选课要求" />
+      <el-empty v-if="!groups.length" description="无限选课要求" :image-size="80" />
       <el-card v-for="g in groups" :key="g.name" style="margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span><b>{{ g.name }}</b>：已选 {{ g.passed }}/{{ g.required }} 门</span>
@@ -59,7 +59,7 @@
       <!-- Audit Result -->
       <el-divider />
       <h3 style="margin-bottom:12px">毕业审核详情</h3>
-      <el-empty v-if="!audit" description="尚未提交审核" />
+      <el-empty v-if="!audit" description="尚未提交审核" :image-size="80" />
       <el-alert v-else :title="audit.detail" :type="audit.is_graduatable ? 'success' : 'error'" :closable="false" show-icon />
     </template>
   </div>

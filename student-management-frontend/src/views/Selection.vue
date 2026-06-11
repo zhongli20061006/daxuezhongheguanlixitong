@@ -35,7 +35,7 @@
               </div>
             </div>
           </div>
-          <el-empty v-else description="暂无可选课程" />
+          <el-empty v-else description="暂无可选课程" :image-size="80" />
         </el-skeleton>
       </el-tab-pane>
       <el-tab-pane label="我的已选" name="selected">

@@ -21,7 +21,7 @@
         </div>
       </div>
     </div>
-    <el-empty v-else-if="queried" description="该时段暂无空闲教室" />
+    <el-empty v-else-if="queried" description="该时段暂无空闲教室" :image-size="80" />
     <div class="content-card" style="margin-top:24px">
       <h3 style="margin-bottom:12px">我的预约</h3>
       <div v-if="myReservations.length" class="room-grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
@@ -32,11 +32,11 @@
           <div style="margin-top:8px"><el-button v-if="r.status==='已预约'" size="small" type="danger" @click.stop="doCancel(r.id)">取消</el-button></div>
         </div>
       </div>
-      <el-empty v-else description="暂无预约记录" />
+      <el-empty v-else description="暂无预约记录" :image-size="80" />
     </div>
     <el-dialog v-model="detailVisible" title="教室占用详情" width="420px">
       <div v-if="detailData && !detailData.available"><p><b>占用课程：</b>{{ detailData.occupied_by?.course_name }}</p><p><b>教师：</b>{{ detailData.occupied_by?.teacher_name }}</p><p><b>周次：</b>{{ detailData.occupied_by?.weeks }}</p><p><b>时间：</b>周{{ detailData.occupied_by?.day_of_week }} {{ detailData.occupied_by?.period }}节</p></div>
-      <el-empty v-else description="该时段无课程占用" />
+      <el-empty v-else description="该时段无课程占用" :image-size="80" />
     </el-dialog>
     <el-dialog v-model="reserveVisible" title="预约教室" width="400px">
       <el-descriptions :column="1" border style="margin-bottom:12px"><el-descriptions-item label="教室">{{ reserveForm.classroom_name }}</el-descriptions-item><el-descriptions-item label="时间">第{{ query.week }}周 周{{ query.day_of_week }} {{ query.period }}节</el-descriptions-item></el-descriptions>

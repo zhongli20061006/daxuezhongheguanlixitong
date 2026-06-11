@@ -28,7 +28,7 @@
               <el-button v-if="r.status==='已完成'" type="success" size="small" @click="confirmRepair(r.id)">确认完成</el-button>
             </div>
           </div>
-          <el-empty v-if="!repairs.length&&!loading" description="暂无报修" />
+          <el-empty v-if="!repairs.length&&!loading" description="暂无报修" :image-size="80" />
         </div>
       </el-tab-pane>
     </el-tabs>

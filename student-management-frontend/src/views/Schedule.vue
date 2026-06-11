@@ -30,7 +30,7 @@
             </tbody>
           </table>
         </div>
-        <el-empty v-else description="暂无课表数据" />
+        <el-empty v-else description="暂无课表数据" :image-size="80" />
       </el-skeleton>
     </div>
     <el-dialog :title="detail?.course_name" v-model="dialogVisible" width="400px">

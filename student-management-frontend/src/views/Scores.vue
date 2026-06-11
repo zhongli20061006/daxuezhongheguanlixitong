@@ -17,7 +17,7 @@
           </el-table>
         </div>
       </template>
-      <el-empty v-else description="暂无成绩记录" />
+      <el-empty v-else description="暂无成绩记录" :image-size="80" />
     </el-skeleton>
   </div>
 </template>

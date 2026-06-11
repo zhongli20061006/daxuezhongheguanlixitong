@@ -12,12 +12,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.models import UserCredential
+from app.models import UserCredential, Student, Teacher, Staff
 from app.deps import create_access_token, get_current_user
 from app.schemas.auth import LoginRequest, ChangePasswordRequest
 from app.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["认证"])
+
+
+async def _resolve_real_name(role: str, role_id: str, db: AsyncSession) -> str | None:
+    """根据角色和角色ID查询真实姓名"""
+    if role == "student":
+        result = await db.execute(select(Student).where(Student.id == role_id))
+        user = result.scalar_one_or_none()
+        return user.name if user else None
+    elif role == "teacher":
+        result = await db.execute(select(Teacher).where(Teacher.job_number == role_id))
+        user = result.scalar_one_or_none()
+        return user.name if user else None
+    elif role == "staff":
+        result = await db.execute(select(Staff).where(Staff.id == role_id))
+        user = result.scalar_one_or_none()
+        return user.name if user else None
+    return None
 
 
 @router.post("/login", summary="用户登录")
@@ -46,9 +63,12 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db), request: 
         role=user.role.value,
         role_id=user.role_id,
     )
+    # 查询真实姓名
+    real_name = await _resolve_real_name(user.role.value, user.role_id, db)
     response = JSONResponse(content={
         "access_token": token,
         "role": user.role.value,
+        "name": real_name or user.username,
         "must_change_password": user.must_change_password,
     })
     # 设置 httpOnly cookie（JS 不可读，防 XSS 窃取）
@@ -85,9 +105,14 @@ async def get_current_user_info(
         select(UserCredential).where(UserCredential.username == current_user["username"])
     )
     user = result.scalar_one_or_none()
+    # 查询真实姓名
+    real_name = None
+    if user:
+        real_name = await _resolve_real_name(current_user["role"], current_user["role_id"], db)
     return {
         "username": current_user["username"],
         "role": current_user["role"],
+        "name": real_name or current_user["username"],
         "must_change_password": user.must_change_password if user else False,
     }
 

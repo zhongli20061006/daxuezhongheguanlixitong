@@ -22,7 +22,7 @@
           </div>
           <div style="color:#6B7280;font-size:13px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">{{ item.content }}</div>
         </div>
-        <el-empty v-if="!filteredItems.length" description="暂无通知" />
+        <el-empty v-if="!filteredItems.length" description="暂无通知" :image-size="80" />
       </div>
     </div>
   </div>
