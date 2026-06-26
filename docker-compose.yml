@@ -8,12 +8,13 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: student_management
-      MYSQL_CHARSET: utf8mb4
-      MYSQL_COLLATION: utf8mb4_unicode_ci
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -26,17 +27,24 @@ services:
       dockerfile: Dockerfile
     container_name: sms-backend
     restart: unless-stopped
+    env_file:
+      - .env.docker
     environment:
-      DATABASE_URL: mysql+aiomysql://root:password@db:3306/student_management
-      SYNC_DATABASE_URL: mysql+pymysql://root:password@db:3306/student_management
-      SECRET_KEY: "production-secret-key-change-me-${RANDOM}"
-      ALLOWED_ORIGINS: "http://localhost,http://127.0.0.1"
-      DEBUG_SQL: "false"
+      # ⚠️ 覆盖 .env.docker 中的默认值 — 生产环境请通过宿主机环境变量注入: export SECRET_KEY=xxx
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-use-random-64-chars}
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    # 首次启动后，运行以下命令初始化测试数据：
+    #   docker compose exec backend python -m app.init_data
 
   frontend:
     build:
@@ -47,7 +55,8 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   mysql_data:

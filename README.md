@@ -41,7 +41,45 @@ FastAPI + Vue 3 全栈学生管理系统，涵盖选课、成绩、课表、请�
 └── run.py                  # PyCharm 调试启动
 ```
 
-## 快速开始
+## Docker 部署（推荐）
+
+### 1. 启动所有服务
+
+```bash
+docker compose up -d
+```
+
+首次构建需 3-5 分钟（安装 Python/Node 依赖）。
+
+### 2. 初始化种子数据
+
+```bash
+# Windows PowerShell
+.\docker-init.ps1
+
+# Linux / macOS
+bash docker-init.sh
+```
+
+### 3. 访问系统
+
+| 入口 | 地址 |
+|------|------|
+| 前端 | http://localhost |
+| API 文档 | http://localhost:8000/docs |
+| 健康检查 | http://localhost:8000/health |
+
+### 4. 测试账号
+
+密码统一为 `test123456`：
+- 管理员: `admin01`
+- 教师: `T10001`
+- 学生: `S2024001`
+- 后勤: `G10001`
+
+---
+
+## 本地开发（手动启动）
 
 ### 1. 创建数据库
 

@@ -1,15 +1,22 @@
 # Python
 __pycache__/
 *.pyc
+*.pyo
 .venv/
+*.egg-info/
+dist/
+build/
 
 # Frontend
 node_modules/
-dist/
+student-management-frontend/dist/
+student-management-frontend/node_modules/
 
 # IDE
 .idea/
 .vscode/
+*.swp
+*.swo
 
 # Git
 .git/
@@ -18,14 +25,24 @@ dist/
 # Logs
 *.log
 
-# Env
+# Env (production env handled by docker-compose env_file)
 .env
 .env.local
+.env.docker
 
 # Tests
 test.db
 .pytest_cache/
+tests/
+
+# Alembic cache
+alembic/__pycache__/
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Temporary
+*.tmp
+.omo/
+.superpawers/
