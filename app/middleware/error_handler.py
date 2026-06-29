@@ -12,12 +12,15 @@ logger = logging.getLogger("student_management")
 
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
-    """为每个请求注入唯一 request_id，便于日志追踪"""
+    """为每个请求注入唯一 request_id，便于日志追踪（WebSocket 请求跳过响应头注入）"""
 
     async def dispatch(self, request: Request, call_next):
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4())[:8])
         request.state.request_id = request_id
         response = await call_next(request)
+        # WebSocket 升级请求没有 HTTP Response headers，跳过注入
+        if request.scope.get("type") == "websocket":
+            return response
         response.headers["X-Request-ID"] = request_id
         return response
 
