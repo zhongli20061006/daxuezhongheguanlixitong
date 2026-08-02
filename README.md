@@ -21,7 +21,8 @@ FastAPI + Vue 3 全栈学生管理系统，涵盖选课、成绩、课表、请�
 │   ├── api/                # API 路由 (14 个)
 │   ├── models/             # SQLAlchemy (20 张表)
 │   ├── schemas/            # Pydantic 模型 (10 个)
-│   ├── services/           # 业务逻辑层 (5 个)
+│   ├── services/           # 业务逻辑层 (6 个)
+│   │   └── agent/          # 智能体：意图识别 / 动作执行 / 会话记忆 / LLM 客户端
 │   ├── utils/              # 工具 (绩点/周次/节次)
 │   ├── config.py           # 配置
 │   ├── database.py         # 数据库引擎 (async+sync)
@@ -136,10 +137,70 @@ cd student-management-frontend && npm run dev
 
 如需使用其他 25 个测试账号，运行 `python -m app.init_data` 重新初始化。
 
+> `agent01` 的学生 ID 也是 `agent01`（与系统"用户名=学号"约定一致），登录后个人中心、选课、智能体等功能均可用。
+
+## 智能体助手（AI Agent）
+
+首页即智能体对话窗口：用自然语言下达指令，系统自动识别意图并执行，不用手动点页面。
+
+**已支持指令**
+
+| 指令示例 | 行为 |
+|----------|------|
+| 打开选课页面 / 查看课表 | 自动跳转对应页面 |
+| 明天上什么课 | 返回明天的课表卡片 |
+| 给我明天学习方案 | 生成每门课的课前预习 / 课后复习 / 优先级方案 |
+| 帮我选人工智能实战 | 预检通过后弹出确认卡片，二次确认后才真正选课 |
+| 退掉人工智能实战 | 同样需要二次确认 |
+| 查一下空教室 | 跳转教室查询页面 |
+
+**架构**
+
+- 意图识别与对话/学习方案生成由本地 **Ollama + Qwen2.5:7b** 完成（不接云端 API）
+- **规则引擎兜底**：模型超时 / 熔断时自动降级为关键词匹配，只读操作仍可用
+- **写操作一律二次确认**：确认令牌 5 分钟有效
+- **多会话管理**：每用户上限 20 个会话；上下文按 8000 token 预算裁剪，动作事实记忆（如"已选课：xx"）
+- 一条消息可包含多个指令，按序执行；业务失败（如人数已满）不中断后续只读指令，系统异常才停止
+
+**Agent API**
+
+| 接口 | 说明 |
+|------|------|
+| POST /agent/chat | 发送消息（返回意图来源 llm / rules / fallback） |
+| POST /agent/confirm | 确认写操作（选课 / 退课等） |
+| GET /agent/status | Ollama 在线状态 + 熔断状态 |
+| GET /agent/sessions | 会话列表 |
+| GET / DELETE /agent/sessions/{id} | 会话历史 / 删除会话 |
+
+**当前状态**：跳转、查课表、学习方案、选课、退课、查教室已可用；**请假、报修、教室预约** 目前为页面跳转占位，接入业务 API 进行中。
+
+## 本地 Ollama 部署（智能体依赖）
+
+智能体需要本地大模型，一次部署长期使用：
+
+1. 安装 Ollama（可静默安装到 `E:\ollama\app`）
+2. 模型目录指向 E 盘，避免占用 C 盘：
+   ```powershell
+   [Environment]::SetEnvironmentVariable('OLLAMA_MODELS','E:\ollama\models','User')
+   ```
+3. 启动服务：
+   ```powershell
+   E:\ollama\app\ollama.exe serve
+   ```
+4. 拉取模型（国内走 ModelScope 源；官方仓库只有 safetensors，Ollama 需要 GGUF 仓库）：
+   ```powershell
+   E:\ollama\app\ollama.exe pull modelscope.cn/qwen/Qwen2.5-7B-Instruct-GGUF
+   E:\ollama\app\ollama.exe cp modelscope.cn/qwen/Qwen2.5-7B-Instruct-GGUF:latest qwen2.5:7b
+   ```
+5. 验证：`http://localhost:11434` 可访问；`.env` 中 `OLLAMA_MODEL=qwen2.5:7b`
+
+> 模型约 4.7GB；本机 RTX 5060 Laptop 8GB 显存可 GPU 加速。Ollama 未启动时智能体会自动降级为规则兜底（读操作仍可用，学习方案返回模板）。
+
 ## 功能模块
 
 | 模块 | 接口 | 状态 |
 |------|------|------|
+| 智能体 | /agent/chat, /agent/confirm, /agent/status, /agent/sessions | ✅（请假/报修/教室预约待接入） |
 | 认证 | /auth/login, /auth/change-password | ✅ |
 | 选课 | /selection/enroll, /selection/drop, /selection/my-courses, /selection/available-courses | ✅ |
 | 课表 | /schedule/my, /schedule/class/{id} + CRUD | ✅ |
@@ -164,6 +225,14 @@ cd student-management-frontend && npm run dev
 ```
 
 测试覆盖：登录(4角色) → 个人中心 → 选课 → 退课 → 课表 → 教室(预约/取消) → 报修 → 请假(审批) → 成绩 → 通知 → 培养方案 → 毕业审核 → 考试(排考/发布/学生查看/教师监考) → 管理
+
+## 自动化测试
+
+```bash
+python -m pytest -q    # 当前 46 passed
+```
+
+覆盖：认证、选课、课表、成绩、请假、审批、教室、报修、通知、培养方案、毕业审核、考试、管理，以及智能体模块（意图识别 / 动作执行 / 会话记忆 / 二次确认 / 种子数据 / 多意图降级等）。
 
 ## 压力测试
 
