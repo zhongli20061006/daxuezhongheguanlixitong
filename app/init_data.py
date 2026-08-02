@@ -254,8 +254,8 @@ def init_data():
                 cid = 3
             students.append(Student(id=student_id, name=name, class_id=cid))
         db.add_all(students)
-        # 智能体测试学生：agent01，密码固定 test123456
-        db.add(Student(id="S2024099", name="智能体测试员", class_id=1))
+        # 智能体测试学生：agent01（用户名=学号，与全系统"username 即学号"的约定保持一致），密码固定 test123456
+        db.add(Student(id="agent01", name="智能体测试员", class_id=1))
 
         # ===== Step 8: 插入后勤工人（2人）=====
         staff_data = [
@@ -305,7 +305,7 @@ def init_data():
             username="agent01",
             password_hash=hash_password("test123456"),
             role=UserRole.student,
-            role_id="S2024099",
+            role_id="agent01",
             must_change_password=False,
         ))
         credentials.append({"username": "agent01", "password": "test123456", "role": "student"})

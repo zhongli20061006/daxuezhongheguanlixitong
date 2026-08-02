@@ -42,7 +42,7 @@ async def _build_seed(db, test_engine):
         Subject(id=11, name="人工智能实战", credit=2.0, type=SubjectType.elective),
         Classroom(id=1, name="D101", capacity=60, building="D", has_projector=False),
         Classroom(id=9, name="D401", capacity=120, building="D", has_projector=True),
-        Student(id="S2024099", name="智能体测试员", class_id=1),
+        Student(id="agent01", name="智能体测试员", class_id=1),
         SystemConfig(config_key="selection_start_time", config_value="2020-01-01 08:00:00"),
         SystemConfig(config_key="selection_end_time", config_value="2099-12-31 18:00:00"),
     ])

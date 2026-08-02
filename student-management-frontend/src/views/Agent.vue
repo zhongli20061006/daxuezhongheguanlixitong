@@ -45,7 +45,19 @@
               </div>
             </template>
             <div class="card-content">
-              <el-table v-if="m.data?.courses && !isPlan(m)" :data="m.data.courses" size="small">
+              <div v-if="isPlan(m)" class="plan-box">
+                <p class="plan-summary">{{ planOf(m).summary }}</p>
+                <div v-for="c in planOf(m).courses" :key="c.course" class="plan-item">
+                  <div class="plan-item-head">
+                    <strong>{{ c.course }}</strong>
+                    <el-tag size="small" :type="priorityType(c.priority)">{{ c.priority }}优先</el-tag>
+                    <span class="plan-duration">{{ c.duration_minutes }}分钟</span>
+                  </div>
+                  <p class="plan-line"><span class="plan-label">课前</span>{{ c.preview }}</p>
+                  <p class="plan-line"><span class="plan-label">课后</span>{{ c.review }}</p>
+                </div>
+              </div>
+              <el-table v-else-if="m.data?.courses" :data="m.data.courses" size="small">
                 <el-table-column prop="course" label="课程" />
                 <el-table-column prop="period" label="节次" width="80" />
                 <el-table-column prop="classroom" label="教室" width="100" />
@@ -117,7 +129,21 @@ watch(
 )
 
 function isPlan(m) {
-  return (m.content || '').trim().startsWith('{')
+  return !!(planOf(m) && Array.isArray(planOf(m).courses))
+}
+
+function planOf(m) {
+  try {
+    return JSON.parse(m.content)
+  } catch {
+    return null
+  }
+}
+
+function priorityType(p) {
+  if (p === '高') return 'danger'
+  if (p === '中') return 'warning'
+  return 'info'
 }
 
 function sendText(text) {
@@ -190,6 +216,20 @@ function cancelMsg(m) {
 .msg-card { max-width: 80%; align-self: flex-start; }
 .card-head { display: flex; align-items: center; justify-content: space-between; }
 .card-content pre { margin: 0; white-space: pre-wrap; font-family: inherit; font-size: 13px; }
+.plan-box { display: flex; flex-direction: column; gap: 10px; }
+.plan-summary { margin: 0; font-weight: 600; color: #1e293b; }
+.plan-item {
+  border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px;
+  background: #f8fafc;
+}
+.plan-item-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.plan-item-head strong { color: #1e293b; font-size: 14px; }
+.plan-duration { margin-left: auto; color: #9ca3af; font-size: 12px; }
+.plan-line { margin: 3px 0; font-size: 13px; color: #374151; line-height: 1.6; }
+.plan-label {
+  display: inline-block; min-width: 30px; margin-right: 6px;
+  font-size: 12px; color: #2563eb; font-weight: 600;
+}
 .confirm-info { color: #6b7280; font-size: 13px; }
 .confirm-actions { display: flex; gap: 8px; margin-top: 8px; }
 .quick-prompts { padding: 8px 20px; display: flex; gap: 8px; flex-wrap: wrap; }

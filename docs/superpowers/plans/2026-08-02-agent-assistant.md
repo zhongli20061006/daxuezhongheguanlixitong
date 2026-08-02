@@ -1751,7 +1751,7 @@ async def _build_seed(db):
         Subject(id=11, name="人工智能实战", credit=2.0, type=SubjectType.elective),
         Classroom(id=1, name="D101", capacity=60, building="D", has_projector=False),
         Classroom(id=9, name="D401", capacity=120, building="D", has_projector=True),
-        Student(id="S2024099", name="智能体测试员", class_id=1),
+        Student(id="agent01", name="智能体测试员", class_id=1),
         SystemConfig(config_key="selection_start_time", config_value="2020-01-01 08:00:00"),
         SystemConfig(config_key="selection_end_time", config_value="2099-12-31 18:00:00"),
     ])
@@ -1786,7 +1786,7 @@ async def test_agent01_has_class_every_day(db):
 async def test_agent01_enroll_precheck_passes(db):
     elective_id = await _build_seed(db)
     executor = ActionExecutor(FakeLLM(), ConfirmationStore(), SessionStore())
-    ok, reason, info = await executor._precheck_enroll("S2024099", elective_id, db)
+    ok, reason, info = await executor._precheck_enroll("agent01", elective_id, db)
     assert ok, reason
     assert info["capacity"] >= 1
 ```
@@ -1828,7 +1828,7 @@ Expected: FAIL（`app.services.agent.actions` 尚不存在，先完成 Task 6 �
 
 ```python
         # 智能体测试学生：agent01，密码固定 test123456
-        db.add(Student(id="S2024099", name="智能体测试员", class_id=1))
+        db.add(Student(id="agent01", name="智能体测试员", class_id=1))
 ```
 
 在 Step 9 凭证循环结束、Step 9.5 之前追加：
@@ -1839,7 +1839,7 @@ Expected: FAIL（`app.services.agent.actions` 尚不存在，先完成 Task 6 �
             username="agent01",
             password_hash=hash_password("test123456"),
             role=UserRole.student,
-            role_id="S2024099",
+            role_id="agent01",
             must_change_password=False,
         ))
         credentials.append({"username": "agent01", "password": "test123456", "role": "student"})
