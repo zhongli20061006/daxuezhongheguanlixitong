@@ -196,6 +196,27 @@ def init_data():
         # 批量创建 Schedule 对象并插入
         schedules = [Schedule(**data) for data in schedules_data]
         db.add_all(schedules)
+        # ===== Step 5.5: 智能体测试数据 —— 周末课表 + 可选课程（agent01 一周每天有课）=====
+        weekend_schedules = [
+            Schedule(teacher_id=10001, subject_id=1, class_id=1, classroom_id=5,
+                     weeks="1-18", day_of_week=6, period="1-2", semester="2024-2025-1"),
+            Schedule(teacher_id=10002, subject_id=2, class_id=1, classroom_id=7,
+                     weeks="1-18", day_of_week=7, period="3-4", semester="2024-2025-1"),
+        ]
+        db.add_all(weekend_schedules)
+        db.flush()
+
+        agent_ai_subject = Subject(id=11, name="人工智能实战", credit=2.0, type=SubjectType.elective)
+        db.add(agent_ai_subject)
+        db.flush()
+
+        agent_ai_schedule = Schedule(
+            teacher_id=10001, subject_id=11, class_id=1, classroom_id=9,
+            weeks="1-18", day_of_week=6, period="5-6", semester="2024-2025-1",
+        )
+        db.add(agent_ai_schedule)
+        db.flush()
+        db.add(CourseCapacity(schedule_id=agent_ai_schedule.id, enrolled=0, capacity=30))
         db.flush()  # 获取自增 ID，供容量表使用
 
         # ===== Step 6: 插入课程容量（仅限选和选修课）=====
@@ -233,6 +254,8 @@ def init_data():
                 cid = 3
             students.append(Student(id=student_id, name=name, class_id=cid))
         db.add_all(students)
+        # 智能体测试学生：agent01，密码固定 test123456
+        db.add(Student(id="S2024099", name="智能体测试员", class_id=1))
 
         # ===== Step 8: 插入后勤工人（2人）=====
         staff_data = [
@@ -277,15 +300,23 @@ def init_data():
                 "role": account["role"].value,
             })
 
+        # agent01：智能体测试专用账号，密码固定，首次登录不强制改密
+        db.add(UserCredential(
+            username="agent01",
+            password_hash=hash_password("test123456"),
+            role=UserRole.student,
+            role_id="S2024099",
+            must_change_password=False,
+        ))
+        credentials.append({"username": "agent01", "password": "test123456", "role": "student"})
+
         # ===== Step 9.5: 插入系统配置 =====
         # 选课时间窗口和退课截止时间，datetime 格式 "YYYY-MM-DD HH:MM:SS"
         system_configs = [
-            # 选课开始时间：2024年秋季学期第2周周一 08:00
-            SystemConfig(config_key="selection_start_time", config_value="2024-09-09 08:00:00"),
-            # 选课结束时间：第4周周五 18:00
-            SystemConfig(config_key="selection_end_time", config_value="2024-09-27 18:00:00"),
-            # 退课截止时间：第10周周五 18:00（比选课窗口晚）
-            SystemConfig(config_key="drop_deadline", config_value="2024-11-08 18:00:00"),
+            # 选课窗口常开（智能体/演示随时可测选课）
+            SystemConfig(config_key="selection_start_time", config_value="2020-01-01 08:00:00"),
+            SystemConfig(config_key="selection_end_time", config_value="2099-12-31 18:00:00"),
+            SystemConfig(config_key="drop_deadline", config_value="2099-12-31 18:00:00"),
         ]
         db.add_all(system_configs)
 

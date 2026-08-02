@@ -132,6 +132,7 @@ cd student-management-frontend && npm run dev
 | 教师 | T10001 | test123456 |
 | 学生 | S2024001 | test123456 |
 | 后勤 | G10001 | test123456 |
+| 智能体测试学生 | agent01 | test123456 |
 
 如需使用其他 25 个测试账号，运行 `python -m app.init_data` 重新初始化。
 
