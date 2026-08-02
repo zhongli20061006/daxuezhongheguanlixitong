@@ -15,6 +15,18 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost:5175"
     # SQL调试 — 开发环境开启回显，生产环境务必关闭
     debug_sql: bool = True
+    # ===== 智能体助手配置 =====
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5:7b"
+    ollama_timeout: float = 10.0
+    ollama_max_concurrency: int = 4
+    ollama_queue_timeout: float = 15.0
+    ollama_circuit_failures: int = 3
+    ollama_circuit_cooldown: float = 60.0
+    agent_confirm_ttl: int = 300
+    agent_session_ttl: int = 1800
+    agent_session_limit: int = 20
+    context_budget_tokens: int = 8000
 
     class Config:
         env_file = ".env"
