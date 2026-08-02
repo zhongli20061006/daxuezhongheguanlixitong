@@ -57,7 +57,7 @@ async function handleLogin() {
     if (res.must_change_password) {
       router.push('/change-password')
     } else {
-      const defaults = { student: '/schedule', teacher: '/scores/input', staff: '/repairs/manage', admin: '/admin' }
+      const defaults = { student: '/', teacher: '/', staff: '/', admin: '/' }
       router.push(defaults[res.role] || '/')
     }
   } catch {

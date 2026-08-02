@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 const routes = [
   { path: '/login', name: 'Login', component: () => import('../views/Login.vue'), meta: { roles: [] } },
   { path: '/change-password', name: 'ChangePassword', component: () => import('../views/ChangePassword.vue'), meta: { roles: ['student', 'teacher', 'staff', 'admin'] } },
+  { path: '/', name: 'Agent', component: () => import('../views/Agent.vue'), meta: { roles: ['student', 'teacher', 'staff', 'admin'] } },
   { path: '/dashboard', name: 'Dashboard', component: () => import('../views/Dashboard.vue'), meta: { roles: ['student'] } },
   { path: '/schedule', name: 'Schedule', component: () => import('../views/Schedule.vue'), meta: { roles: ['student'] } },
   { path: '/selection', name: 'Selection', component: () => import('../views/Selection.vue'), meta: { roles: ['student'] } },
@@ -21,7 +22,6 @@ const routes = [
   { path: '/advisor', name: 'AdvisorApproval', component: () => import('../views/AdvisorApproval.vue'), meta: { roles: ['teacher', 'admin'] } },
   { path: '/notifications', name: 'Notifications', component: () => import('../views/Notifications.vue'), meta: { roles: ['student', 'teacher', 'staff', 'admin'] } },
   { path: '/profile', name: 'Profile', component: () => import('../views/Profile.vue'), meta: { roles: ['student', 'teacher', 'staff', 'admin'] } },
-  { path: '/', redirect: '/login' },
   { path: '/:pathMatch(.*)*', redirect: '/login' }
 ]
 
@@ -30,7 +30,7 @@ const router = createRouter({
   routes
 })
 
-const defaultPages = { student: '/dashboard', teacher: '/scores/input', staff: '/repairs/manage', admin: '/admin' }
+const defaultPages = { student: '/', teacher: '/', staff: '/', admin: '/' }
 
 router.beforeEach(async (to, from, next) => {
   // Don't start progress bar for login → login transitions

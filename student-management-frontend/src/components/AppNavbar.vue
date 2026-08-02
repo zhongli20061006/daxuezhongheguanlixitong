@@ -125,7 +125,7 @@ import { useAuthStore } from '../stores/auth'
 import router from '../router'
 import {
   HomeFilled, Calendar, Tickets, Document, OfficeBuilding,
-  DataAnalysis, Reading, Tools, Timer, Bell, User,
+  DataAnalysis, Reading, Tools, Timer, Bell, User, ChatDotRound,
   Management, Expand, Fold
 } from '@element-plus/icons-vue'
 import { getNotifications, getUnreadCount, markAllRead as markAllReadApi } from '../api/notification'
@@ -141,6 +141,7 @@ let pollTimer = null
 /* ───── Menu items by role ───── */
 const menuItems = computed(() => {
   const role = auth.role
+  const agentItem = { path: '/', label: 'AI 助手', icon: ChatDotRound }
   const menus = {
     student: [
       { path: '/dashboard',    label: '首页',       icon: HomeFilled },
@@ -173,16 +174,16 @@ const menuItems = computed(() => {
       { path: '/repairs',        label: '报修中心',    icon: Tools },
     ],
   }
+  for (const key of Object.keys(menus)) {
+    menus[key] = [agentItem, ...menus[key]]
+  }
   return menus[role] || []
 })
 
 /* ───── Mobile bottom tabs ───── */
 const mobileTabs = computed(() => {
   const role = auth.role
-  const defaultPage = role === 'student' ? '/dashboard'
-    : role === 'teacher' ? '/scores/input'
-    : role === 'staff' ? '/repairs/manage'
-    : '/admin'
+  const defaultPage = '/'
 
   let secondTab
   switch (role) {
