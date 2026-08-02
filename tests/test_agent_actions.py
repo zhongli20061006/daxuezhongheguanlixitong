@@ -73,6 +73,19 @@ async def test_permission_student_only(db):
 
 
 @pytest.mark.asyncio
+async def test_navigate_validates_page(db):
+    executor = _executor()
+    ok = await executor.execute(
+        Intent(intent=IntentType.navigate, params={"page": "/selection"}), "u1", "student", "s", db
+    )
+    assert ok[0].kind == "card"
+    bad = await executor.execute(
+        Intent(intent=IntentType.navigate, params={"page": "/evil"}), "u1", "student", "s", db
+    )
+    assert bad[0].kind == "error"
+
+
+@pytest.mark.asyncio
 async def test_enroll_confirmation_then_execute(db, test_engine):
     await _seed(db, test_engine)
     executor = _executor()

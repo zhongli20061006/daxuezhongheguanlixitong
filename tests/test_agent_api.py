@@ -5,6 +5,7 @@ from app.models import (
     Classroom, CourseCapacity, Schedule, Student, StudentClass, Subject, SubjectType,
     SystemConfig, Teacher,
 )
+from app.services.agent.actions import _tomorrow_weekday
 from app.services.agent.llm import OllamaUnavailable
 
 
@@ -15,8 +16,19 @@ class FakeLLM:
     async def chat(self, messages):
         return "模型回复"
 
+    async def ping(self):
+        return True
+
     def status(self):
         return "ok"
+
+
+class FakeMultiLLM(FakeLLM):
+    async def extract_json(self, messages):
+        return {"intents": [
+            {"intent": "enroll", "params": {"course": "不存在的课"}, "confidence": 0.9},
+            {"intent": "query_schedule", "params": {}, "confidence": 0.9},
+        ]}
 
 
 async def _cleanup(test_engine):
@@ -36,6 +48,7 @@ async def _seed_agent_data(db, test_engine):
     db.add_all([
         StudentClass(id=1, name="测试班", major="计算机", grade=2024, advisor_id=1),
         Teacher(id=1, name="张老师", job_number="T10001", department="计算机", title="教授", is_college_admin=False),
+        Subject(id=1, name="高等数学", credit=5.0, type=SubjectType.compulsory),
         Subject(id=2, name="人工智能实战", credit=2.0, type=SubjectType.elective),
         Classroom(id=1, name="D101", capacity=60, building="D", has_projector=False),
         Student(id="S2024001", name="测试学生", class_id=1),
@@ -48,6 +61,10 @@ async def _seed_agent_data(db, test_engine):
         weeks="1-18", day_of_week=5, period="5-6", semester="2024-2025-1",
     ))
     db.add(CourseCapacity(schedule_id=1, enrolled=0, capacity=30))
+    db.add(Schedule(
+        id=2, teacher_id=1, subject_id=1, class_id=1, classroom_id=1,
+        weeks="1-18", day_of_week=_tomorrow_weekday(), period="1-2", semester="2024-2025-1",
+    ))
     await db.commit()
 
 
@@ -101,6 +118,24 @@ async def test_confirm_expired_token(client, auth_override, fake_llm):
     resp = await client.post("/agent/confirm", json={"token": "not-a-token"})
     assert resp.status_code == 200
     assert resp.json()["messages"][0]["kind"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_multi_intent_business_failure_continues(client, db, test_engine, auth_override, monkeypatch):
+    """第一个意图业务失败（课程不存在）后，同一消息中的只读意图仍继续执行。"""
+    await _seed_agent_data(db, test_engine)
+    from app.api import agent as agent_api
+
+    fake = FakeMultiLLM()
+    monkeypatch.setattr(agent_api, "agent_llm", fake)
+    monkeypatch.setattr(agent_api.resolver, "llm", fake)
+    monkeypatch.setattr(agent_api.executor, "llm", fake)
+    resp = await client.post("/agent/chat", json={"message": "帮我选不存在的课，然后查明天的课表"})
+    assert resp.status_code == 200
+    kinds = [m["kind"] for m in resp.json()["messages"]]
+    assert kinds.count("error") >= 1
+    assert "card" in kinds
+    assert "summary" in kinds
 
 
 @pytest.mark.asyncio

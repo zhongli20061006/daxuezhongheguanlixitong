@@ -21,6 +21,12 @@ WEEKDAY_CN = ["周一", "周二", "周三", "周四", "周五", "周六", "周�
 STUDENT_ONLY = frozenset({IntentType.query_schedule, IntentType.study_plan, IntentType.enroll, IntentType.drop})
 NOT_FOR_ADMIN = frozenset({IntentType.reserve_classroom, IntentType.repair_submit, IntentType.leave_apply})
 
+KNOWN_PAGES = frozenset({
+    "/", "/dashboard", "/schedule", "/selection", "/scores", "/scores/input",
+    "/classrooms", "/repairs", "/repairs/manage", "/leaves", "/plan",
+    "/my-exams", "/my-invigilations", "/advisor", "/notifications", "/profile", "/admin",
+})
+
 
 def _allowed(intent: IntentType, role: str) -> bool:
     if intent in STUDENT_ONLY and role != "student":
@@ -81,7 +87,9 @@ class ActionExecutor:
     async def _handle_navigate(self, intent, user_id, role, session_id, db):
         from app.services.agent import AgentMessage
 
-        page = intent.params.get("page") or "/"
+        page = (intent.params.get("page") or "/").rstrip("/") or "/"
+        if page not in KNOWN_PAGES:
+            return [AgentMessage(kind="error", title="业务失败", content=f"无法识别目标页面：{page}")]
         return [AgentMessage(kind="card", title="页面跳转", content=f"正在前往：{page}", navigation=page)]
 
     async def _handle_query_schedule(self, intent, user_id, role, session_id, db):

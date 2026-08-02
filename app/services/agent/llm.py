@@ -56,6 +56,17 @@ class OllamaClient:
             return "unavailable"
         return "ok"
 
+    async def ping(self) -> bool:
+        """轻量探测 Ollama 是否在线（GET /api/tags），不计入熔断计数。"""
+        if time.time() < self._open_until:
+            return False
+        try:
+            resp = await self._get_client().get(f"{self.base_url}/api/tags")
+            resp.raise_for_status()
+            return True
+        except (httpx.HTTPError, httpx.TimeoutException):
+            return False
+
     def _note_failure(self) -> None:
         self._consecutive_failures += 1
         if self._consecutive_failures >= self.circuit_failures:

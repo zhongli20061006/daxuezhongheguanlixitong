@@ -36,6 +36,18 @@ async def test_extract_json():
 
 
 @pytest.mark.asyncio
+async def test_ping_ok():
+    client = _client({"models": []})
+    assert await client.ping() is True
+
+
+@pytest.mark.asyncio
+async def test_ping_fails_when_down():
+    client = _client(httpx.ConnectError("down"))
+    assert await client.ping() is False
+
+
+@pytest.mark.asyncio
 async def test_timeout_raises():
     client = _client(httpx.ConnectTimeout("timeout"))
     with pytest.raises(OllamaTimeout):

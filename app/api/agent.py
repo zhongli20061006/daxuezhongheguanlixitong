@@ -126,8 +126,10 @@ async def agent_confirm(
 
 @router.get("/status", summary="智能体与模型状态")
 async def agent_status(current_user: dict = Depends(get_current_user)):
+    online = await agent_llm.ping()
     return {
-        "ollama": agent_llm.status(),
+        "ollama": "ok" if online else "unavailable",
+        "circuit": agent_llm.status(),
         "session_count": len(session_store.list_sessions(current_user["username"])),
     }
 
