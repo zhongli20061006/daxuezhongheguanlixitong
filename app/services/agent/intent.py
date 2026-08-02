@@ -1,0 +1,131 @@
+"""意图识别：LLM 优先（JSON 抽取，失败重试一次），规则引擎兜底，短 TTL 缓存。"""
+import re
+import time
+from enum import Enum
+
+from pydantic import BaseModel, Field, ValidationError
+
+from app.services.agent.llm import OllamaBusy, OllamaClient, OllamaTimeout, OllamaUnavailable
+
+
+class IntentType(str, Enum):
+    navigate = "navigate"
+    query_schedule = "query_schedule"
+    study_plan = "study_plan"
+    enroll = "enroll"
+    drop = "drop"
+    query_classroom = "query_classroom"
+    reserve_classroom = "reserve_classroom"
+    repair_submit = "repair_submit"
+    leave_apply = "leave_apply"
+    chat = "chat"
+
+
+WRITE_INTENTS = frozenset({
+    IntentType.enroll, IntentType.drop, IntentType.reserve_classroom,
+    IntentType.repair_submit, IntentType.leave_apply,
+})
+
+
+class Intent(BaseModel):
+    intent: IntentType
+    params: dict[str, str] = Field(default_factory=dict)
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    need_confirm: bool = False
+
+
+PAGE_KEYWORDS = {
+    "选课": "/selection", "课表": "/schedule", "成绩": "/scores", "教室": "/classrooms",
+    "报修": "/repairs", "请假": "/leaves", "通知": "/notifications", "个人中心": "/profile",
+    "培养方案": "/plan", "考试": "/my-exams", "首页": "/dashboard", "管理后台": "/admin",
+}
+
+RULE_TABLE: list[tuple[IntentType, list[str], str | None]] = [
+    (IntentType.study_plan, ["学习方案", "学习计划", "怎么学", "复习计划"], None),
+    (IntentType.query_schedule, ["上什么课", "课程安排", "课表"], None),
+    (IntentType.query_classroom, ["空教室", "教室可用", "查教室"], None),
+    (IntentType.reserve_classroom, ["预约教室", "借教室", "订教室", "申请教室"], None),
+    (IntentType.drop, ["退课", "退选", "不上了"], r"(?:退课|退选)\s*([^\s，。,.！!？?]+)"),
+    (IntentType.enroll, ["选课", "选这门", "报名", "选修", "帮我选", "要选"], r"(?:选|报)(?:修|名)?\s*([^\s，。,.！!？?]+)"),
+    (IntentType.repair_submit, ["报修", "修一下", "后勤", "东西坏了"], None),
+    (IntentType.leave_apply, ["请假", "休假申请"], None),
+]
+
+
+def match_rules(text: str) -> "Intent | None":
+    """页面词优先（跳转），其次按规则表顺序匹配；返回单个意图。"""
+    lowered = text.strip()
+    for page_word, path in PAGE_KEYWORDS.items():
+        if page_word in lowered:
+            return Intent(intent=IntentType.navigate, params={"page": path}, confidence=0.9, need_confirm=False)
+    for intent, keywords, pattern in RULE_TABLE:
+        for kw in keywords:
+            if kw in lowered:
+                params: dict[str, str] = {}
+                if pattern:
+                    m = re.search(pattern, lowered)
+                    if m:
+                        params["course"] = m.group(1).strip()
+                return Intent(intent=intent, params=params, confidence=0.85, need_confirm=intent in WRITE_INTENTS)
+    return None
+
+
+EXTRACT_SYSTEM_PROMPT = (
+    "你是教务智能体的意图识别器。把用户指令解析为有序意图列表（JSON）。"
+    "可选意图：navigate(跳转页面,params.page)、query_schedule(查课表)、study_plan(学习方案)、"
+    "enroll(选课,params.course)、drop(退课,params.course)、query_classroom(查空教室)、"
+    "reserve_classroom(预约教室)、repair_submit(报修)、leave_apply(请假)、chat(闲聊/其他)。"
+    '输出格式：{"intents":[{"intent":"...","params":{...},"confidence":0.9}]}。'
+    "只输出 JSON，不要多余文字。"
+)
+
+
+class IntentResolver:
+    def __init__(self, llm: OllamaClient, cache_size: int = 200, cache_ttl: float = 300.0):
+        self.llm = llm
+        self.cache_size = cache_size
+        self.cache_ttl = cache_ttl
+        self._cache: dict[str, tuple[float, list[Intent]]] = {}
+
+    async def resolve(self, text: str) -> tuple[list[Intent], str]:
+        now = time.time()
+        cached = self._cache.get(text)
+        if cached and now - cached[0] <= self.cache_ttl:
+            return cached[1], "cache"
+
+        for _ in range(2):  # JSON 解析失败重试一次
+            try:
+                data = await self.llm.extract_json([
+                    {"role": "system", "content": EXTRACT_SYSTEM_PROMPT},
+                    {"role": "user", "content": text},
+                ])
+                intents = self._parse_llm(data)
+                if intents:
+                    self._put(text, intents, now)
+                    return intents, "llm"
+            except (OllamaUnavailable, OllamaTimeout, OllamaBusy):
+                break  # 服务问题不重试
+            except (ValueError, ValidationError):
+                continue
+
+        rule = match_rules(text)
+        if rule:
+            intents = [rule]
+            self._put(text, intents, now)
+            return intents, "rules"
+        return [Intent(intent=IntentType.chat, confidence=0.3)], "fallback"
+
+    def _parse_llm(self, data: dict) -> list[Intent]:
+        raw = data.get("intents") or []
+        intents = []
+        for item in raw:
+            intent = Intent(**item)
+            intent.need_confirm = intent.intent in WRITE_INTENTS
+            intents.append(intent)
+        return intents
+
+    def _put(self, text: str, intents: list[Intent], now: float) -> None:
+        if len(self._cache) >= self.cache_size:
+            oldest = min(self._cache, key=lambda k: self._cache[k][0])
+            self._cache.pop(oldest, None)
+        self._cache[text] = (now, intents)
