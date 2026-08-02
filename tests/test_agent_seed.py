@@ -76,6 +76,6 @@ async def test_agent01_has_class_every_day(db, test_engine):
 async def test_agent01_enroll_precheck_passes(db, test_engine):
     elective_id = await _build_seed(db, test_engine)
     executor = ActionExecutor(FakeLLM(), ConfirmationStore(), SessionStore())
-    ok, reason, info = await executor._precheck_enroll("S2024099", elective_id, db)
+    ok, reason, info = await executor._precheck_enroll("agent01", elective_id, db)
     assert ok, reason
     assert info["capacity"] >= 1
