@@ -146,3 +146,36 @@ async def test_status_and_sessions(client, auth_override, fake_llm):
     resp = await client.get("/agent/sessions")
     assert resp.status_code == 200
     assert "sessions" in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_role_id_identity_when_username_differs(client, db, test_engine, monkeypatch):
+    """agent01 这类测试账号 username 与 student.id 不一致时，业务身份必须用 role_id。"""
+    await _seed_agent_data(db, test_engine)
+    db.add(Student(id="S2024099", name="智能体测试员", class_id=1))
+    await db.commit()
+
+    from app.deps import get_current_user
+    from app.main import app
+    from app.api import agent as agent_api
+
+    app.dependency_overrides[get_current_user] = lambda: {
+        "username": "agent01", "role": "student", "role_id": "S2024099",
+    }
+    fake = FakeLLM()
+    monkeypatch.setattr(agent_api, "agent_llm", fake)
+    monkeypatch.setattr(agent_api.resolver, "llm", fake)
+    monkeypatch.setattr(agent_api.executor, "llm", fake)
+    try:
+        resp = await client.post("/agent/chat", json={"message": "明天上什么课"})
+        assert resp.status_code == 200
+        data = resp.json()
+        card = next(m for m in data["messages"] if m["kind"] == "card")
+        assert card["title"] == "明天的课表"
+        assert len(card["data"]["courses"]) == 1  # 高等数学（明天）
+
+        resp2 = await client.post("/agent/chat", json={"message": "帮我选人工智能实战"})
+        kinds = [m["kind"] for m in resp2.json()["messages"]]
+        assert "confirmation" in kinds
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)

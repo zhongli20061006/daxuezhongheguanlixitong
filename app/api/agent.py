@@ -52,7 +52,7 @@ async def agent_chat(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    user_id = current_user["username"]
+    user_id = current_user["role_id"]
     role = current_user["role"]
     if req.session_id:
         if not session_store.get(user_id, req.session_id):
@@ -119,7 +119,7 @@ async def agent_confirm(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    payload = confirmation_store.consume(current_user["username"], req.token)
+    payload = confirmation_store.consume(current_user["role_id"], req.token)
     messages = await executor.execute_confirm(payload, db)
     return {"messages": messages}
 
@@ -130,17 +130,17 @@ async def agent_status(current_user: dict = Depends(get_current_user)):
     return {
         "ollama": "ok" if online else "unavailable",
         "circuit": agent_llm.status(),
-        "session_count": len(session_store.list_sessions(current_user["username"])),
+        "session_count": len(session_store.list_sessions(current_user["role_id"])),
     }
 
 
 @router.get("/sessions", summary="会话列表")
 async def list_sessions(current_user: dict = Depends(get_current_user)):
-    return {"sessions": session_store.list_sessions(current_user["username"])}
+    return {"sessions": session_store.list_sessions(current_user["role_id"])}
 
 
 @router.delete("/sessions/{session_id}", summary="删除会话")
 async def delete_session(session_id: str, current_user: dict = Depends(get_current_user)):
-    if not session_store.delete(current_user["username"], session_id):
+    if not session_store.delete(current_user["role_id"], session_id):
         raise HTTPException(status_code=404, detail="会话不存在")
     return {"message": "已删除"}
