@@ -139,6 +139,14 @@ async def list_sessions(current_user: dict = Depends(get_current_user)):
     return {"sessions": session_store.list_sessions(current_user["role_id"])}
 
 
+@router.get("/sessions/{session_id}", summary="会话历史消息")
+async def session_messages(session_id: str, current_user: dict = Depends(get_current_user)):
+    session = session_store.get(current_user["role_id"], session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="会话不存在或已过期")
+    return {"session_id": session_id, "messages": session["messages"]}
+
+
 @router.delete("/sessions/{session_id}", summary="删除会话")
 async def delete_session(session_id: str, current_user: dict = Depends(get_current_user)):
     if not session_store.delete(current_user["role_id"], session_id):

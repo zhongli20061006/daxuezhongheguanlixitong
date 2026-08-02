@@ -149,6 +149,21 @@ async def test_status_and_sessions(client, auth_override, fake_llm):
 
 
 @pytest.mark.asyncio
+async def test_session_history_endpoint(client, db, test_engine, auth_override, fake_llm):
+    await _seed_agent_data(db, test_engine)
+    resp = await client.post("/agent/chat", json={"message": "帮我选人工智能实战"})
+    sid = resp.json()["session_id"]
+    resp2 = await client.get(f"/agent/sessions/{sid}")
+    assert resp2.status_code == 200
+    msgs = resp2.json()["messages"]
+    assert any(m["role"] == "user" for m in msgs)
+    assert any(m["kind"] == "confirmation" for m in msgs)
+
+    missing = await client.get("/agent/sessions/not-exist")
+    assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_role_id_identity_when_username_differs(client, db, test_engine, monkeypatch):
     """agent01 这类测试账号 username 与 student.id 不一致时，业务身份必须用 role_id。"""
     await _seed_agent_data(db, test_engine)

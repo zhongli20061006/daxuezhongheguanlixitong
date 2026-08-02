@@ -10,9 +10,9 @@
           :key="s.session_id"
           class="session-item"
           :class="{ active: s.session_id === store.currentSessionId }"
-          @click="selectSession(s.session_id)"
+          @click="store.selectSession(s.session_id)"
         >
-          <span class="session-title">会话 {{ s.message_count }} 条</span>
+          <span class="session-title">{{ sessionTitle(s) }}</span>
           <el-button link type="danger" size="small" @click.stop="store.removeSession(s.session_id)">
             删除
           </el-button>
@@ -29,6 +29,7 @@
       </header>
 
       <div ref="listRef" class="message-list">
+        <div v-if="store.loadingHistory" class="msg typing">会话加载中…</div>
         <template v-for="(m, idx) in store.messages" :key="idx">
           <div v-if="m.own" class="msg own">{{ m.content }}</div>
           <div v-else-if="m.kind === 'text'" class="msg">{{ m.content }}</div>
@@ -60,7 +61,7 @@
               {{ m.data.course }}｜{{ m.data.day }} {{ m.data.period }}节｜{{ m.data.classroom }}
               ｜余量 {{ m.data.enrolled }}/{{ m.data.capacity }}
             </p>
-            <div class="confirm-actions">
+            <div v-if="m.confirm_token" class="confirm-actions">
               <el-button type="primary" :disabled="store.sending" @click="store.confirm(m.confirm_token)">
                 确认执行
               </el-button>
@@ -126,17 +127,17 @@ function sendText(text) {
   scrollToBottom()
 }
 
+function sessionTitle(s) {
+  const msgs = store.sessionCache[s.session_id]
+  const firstUser = msgs?.find(m => m.own)?.content
+  if (firstUser) return firstUser.length > 20 ? firstUser.slice(0, 20) + '…' : firstUser
+  return `会话 ${s.message_count} 条`
+}
+
 function scrollToBottom() {
   nextTick(() => {
     if (listRef.value) listRef.value.scrollTop = listRef.value.scrollHeight
   })
-}
-
-async function selectSession(id) {
-  if (store.currentSessionId === id) return
-  store.currentSessionId = id
-  store.messages = []
-  store.send('你好')
 }
 
 function go(path) {
@@ -164,7 +165,9 @@ function cancelMsg(m) {
 .session-item:hover { background: #f3f4f6; }
 .session-item.active { background: #e0e7ff; }
 .session-title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chat-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.chat-panel {
+  flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden;
+}
 .chat-header {
   display: flex; align-items: center; gap: 12px; padding: 12px 20px;
   border-bottom: 1px solid #e5e7eb; background: #fff;
@@ -173,7 +176,8 @@ function cancelMsg(m) {
 .model-status { font-size: 12px; color: #f59e0b; }
 .model-status.ok { color: #10b981; }
 .message-list {
-  flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px;
+  flex: 1; min-height: 0; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px;
+  scroll-behavior: smooth;
 }
 .msg {
   max-width: 75%; padding: 10px 14px; border-radius: 12px; background: #fff;

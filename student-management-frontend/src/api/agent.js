@@ -16,6 +16,10 @@ export function listSessions() {
   return request.get('/agent/sessions')
 }
 
+export function getSessionMessages(sessionId) {
+  return request.get(`/agent/sessions/${sessionId}`)
+}
+
 export function deleteSession(sessionId) {
   return request.delete(`/agent/sessions/${sessionId}`)
 }
