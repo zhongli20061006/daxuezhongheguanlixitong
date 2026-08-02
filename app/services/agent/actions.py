@@ -105,7 +105,8 @@ class ActionExecutor:
         from app.services.agent import AgentMessage
 
         context = self.sessions.build_context(user_id, session_id)
-        context.append({"role": "user", "content": raw_text or "你好"})
+        if not context or context[-1]["content"] != raw_text:
+            context.append({"role": "user", "content": raw_text or "你好"})
         reply = await self.llm.chat(context)
         return [AgentMessage(kind="text", content=reply)]
 

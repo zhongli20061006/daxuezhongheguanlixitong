@@ -91,7 +91,7 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAgentStore } from '../stores/agent'
 
@@ -106,6 +106,14 @@ onMounted(async () => {
   await store.loadSessions()
   store.refreshStatus()
 })
+
+watch(
+  () => store.messages,
+  (list) => {
+    const navMsg = list.find(m => m.navigation)
+    if (navMsg) router.push(navMsg.navigation)
+  }
+)
 
 function isPlan(m) {
   return (m.content || '').trim().startsWith('{')
