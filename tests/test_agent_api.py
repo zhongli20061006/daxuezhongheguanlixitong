@@ -1,0 +1,113 @@
+"""智能体 API：chat、confirm、status、sessions。"""
+import pytest
+
+from app.models import (
+    Classroom, CourseCapacity, Schedule, Student, StudentClass, Subject, SubjectType,
+    SystemConfig, Teacher,
+)
+from app.services.agent.llm import OllamaUnavailable
+
+
+class FakeLLM:
+    async def extract_json(self, messages):
+        raise OllamaUnavailable("down")
+
+    async def chat(self, messages):
+        return "模型回复"
+
+    def status(self):
+        return "ok"
+
+
+async def _cleanup(test_engine):
+    from sqlalchemy import delete as sa_delete
+
+    from app.models import (
+        Classroom, CourseCapacity, CourseSelection, Schedule, Student, StudentClass,
+        Subject, SystemConfig, Teacher,
+    )
+    async with test_engine.begin() as conn:
+        for model in (CourseSelection, CourseCapacity, Schedule, SystemConfig, Student, Classroom, Subject, Teacher, StudentClass):
+            await conn.execute(sa_delete(model))
+
+
+async def _seed_agent_data(db, test_engine):
+    await _cleanup(test_engine)
+    db.add_all([
+        StudentClass(id=1, name="测试班", major="计算机", grade=2024, advisor_id=1),
+        Teacher(id=1, name="张老师", job_number="T10001", department="计算机", title="教授", is_college_admin=False),
+        Subject(id=2, name="人工智能实战", credit=2.0, type=SubjectType.elective),
+        Classroom(id=1, name="D101", capacity=60, building="D", has_projector=False),
+        Student(id="S2024001", name="测试学生", class_id=1),
+        SystemConfig(config_key="selection_start_time", config_value="2020-01-01 08:00:00"),
+        SystemConfig(config_key="selection_end_time", config_value="2099-12-31 18:00:00"),
+    ])
+    await db.flush()
+    db.add(Schedule(
+        id=1, teacher_id=1, subject_id=2, class_id=1, classroom_id=1,
+        weeks="1-18", day_of_week=5, period="5-6", semester="2024-2025-1",
+    ))
+    db.add(CourseCapacity(schedule_id=1, enrolled=0, capacity=30))
+    await db.commit()
+
+
+@pytest.fixture
+def auth_override():
+    from app.deps import get_current_user
+    from app.main import app
+
+    app.dependency_overrides[get_current_user] = lambda: {
+        "username": "S2024001", "role": "student", "role_id": "S2024001",
+    }
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.fixture
+def fake_llm(monkeypatch):
+    from app.api import agent as agent_api
+
+    fake = FakeLLM()
+    monkeypatch.setattr(agent_api, "agent_llm", fake)
+    monkeypatch.setattr(agent_api.resolver, "llm", fake)
+    monkeypatch.setattr(agent_api.executor, "llm", fake)
+    return fake
+
+
+@pytest.mark.asyncio
+async def test_chat_enroll_confirmation(client, db, test_engine, auth_override, fake_llm):
+    await _seed_agent_data(db, test_engine)
+    resp = await client.post("/agent/chat", json={"message": "帮我选人工智能实战"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["session_id"]
+    kinds = [m["kind"] for m in data["messages"]]
+    assert "confirmation" in kinds
+    assert "summary" in kinds
+
+
+@pytest.mark.asyncio
+async def test_confirm_executes_enroll(client, db, test_engine, auth_override, fake_llm):
+    await _seed_agent_data(db, test_engine)
+    resp = await client.post("/agent/chat", json={"message": "帮我选人工智能实战"})
+    token = next(m["confirm_token"] for m in resp.json()["messages"] if m["kind"] == "confirmation")
+    resp2 = await client.post("/agent/confirm", json={"token": token})
+    assert resp2.status_code == 200
+    assert resp2.json()["messages"][0]["kind"] == "card"
+
+
+@pytest.mark.asyncio
+async def test_confirm_expired_token(client, auth_override, fake_llm):
+    resp = await client.post("/agent/confirm", json={"token": "not-a-token"})
+    assert resp.status_code == 200
+    assert resp.json()["messages"][0]["kind"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_status_and_sessions(client, auth_override, fake_llm):
+    status = await client.get("/agent/status")
+    assert status.status_code == 200
+    assert status.json()["ollama"] == "ok"
+    resp = await client.get("/agent/sessions")
+    assert resp.status_code == 200
+    assert "sessions" in resp.json()
