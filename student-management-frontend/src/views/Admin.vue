@@ -91,3 +91,89 @@ async function generateExams(){examGenerating.value=true;try{const r=await examA
 async function publishHandler(id){try{await examApi.publishExam(id);ElMessage.success('已发布');loadExams()}catch{}}
 onMounted(async()=>{await loadSchedules();try{const r=await getSelectionWindow();windowForm.value={...windowForm.value,...r}}catch{}})
 </script>
+
+<style scoped>
+/* ── Page Header Enhancement ── */
+.page-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 2px solid var(--color-border-light);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.3px;
+}
+.page-title::before {
+  content: '';
+  width: 4px;
+  height: 24px;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* ── Tab Area Enhancement ── */
+.el-tabs {
+  animation: fadeIn 0.3s ease-out;
+}
+.el-tabs__item {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 16px;
+  transition: color var(--transition-fast);
+}
+.el-tabs__item.is-active {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+.el-tabs__active-bar {
+  height: 3px;
+  border-radius: var(--radius-full);
+}
+
+/* ── Content Card Accents per Tab ── */
+/* Schedule tab */
+.el-tab-pane:nth-child(1) .content-card {
+  border-top: 3px solid var(--color-primary);
+}
+/* Selection window tab */
+.el-tab-pane:nth-child(2) .content-card {
+  border-top: 3px solid var(--color-success);
+}
+/* Users tab */
+.el-tab-pane:nth-child(3) .content-card {
+  border-top: 3px solid var(--color-info);
+}
+/* Plans tab */
+.el-tab-pane:nth-child(4) .content-card {
+  border-top: 3px solid var(--color-warning);
+}
+/* Audit tab */
+.el-tab-pane:nth-child(5) .content-card {
+  border-top: 3px solid var(--color-danger);
+}
+/* Exam tab */
+.el-tab-pane:nth-child(6) .content-card {
+  border-top: 3px solid var(--color-success);
+}
+
+/* ── Tab Content Transition ── */
+.el-tab-pane {
+  animation: fadeInUp 0.35s ease-out;
+}
+
+/* ── Button Row Spacing ── */
+div[style*="display:flex;gap:12px;margin-bottom:12px;align-items:center"] {
+  padding-bottom: 12px;
+  margin-bottom: 16px !important;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .page-title { font-size: 19px; }
+}
+</style>

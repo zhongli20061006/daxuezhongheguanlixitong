@@ -1,9 +1,15 @@
 <template>
   <div class="page-container">
-    <h2 class="page-title">我的考试</h2>
+    <div class="page-header">
+      <div class="page-header-icon" style="background:var(--color-danger-bg);color:var(--color-danger)">📋</div>
+      <div>
+        <h2 class="page-title" style="margin:0">我的考试</h2>
+        <div class="page-subtitle">查看考试安排与考场信息</div>
+      </div>
+    </div>
     <el-empty v-if="!exams.length" description="暂无考试安排" :image-size="80" />
     <div v-else class="exam-timeline">
-      <div v-for="e in exams" :key="e.id" class="content-card" style="display:flex;gap:16px;align-items:flex-start">
+      <div v-for="e in exams" :key="e.id" class="content-card card-accent--info" style="display:flex;gap:16px;align-items:flex-start">
         <div style="min-width:80px;text-align:center">
           <div style="font-size:24px;font-weight:700;color:#2563EB">{{ e.date?.slice(5) }}</div>
           <div style="font-size:13px;color:#6B7280">{{ e.start_time }}-{{ e.end_time }}</div>
@@ -24,3 +30,7 @@ const exams = ref([])
 function statusType(s) { const m={'已排考':'warning','已发布':'success','已结束':'info'}; return m[s]||'info' }
 onMounted(async () => { try { const r = await getMyExams(); exams.value = r.exams || [] } catch {} })
 </script>
+
+<style scoped>
+.exam-timeline { display:flex; flex-direction:column; gap:var(--space-md); }
+</style>

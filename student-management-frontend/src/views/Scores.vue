@@ -1,13 +1,19 @@
 <template>
   <div class="page-container">
-    <h2 class="page-title">我的成绩</h2>
+    <div class="page-header">
+      <div class="page-header-icon" style="background:var(--color-success-bg);color:var(--color-success)">📊</div>
+      <div>
+        <h2 class="page-title" style="margin:0">我的成绩</h2>
+        <div class="page-subtitle">成绩查询与绩点统计</div>
+      </div>
+    </div>
     <el-skeleton :loading="loading" animated :count="3">
       <template v-if="scores.length">
         <div class="stat-cards">
-          <div class="stat-card"><div class="stat-icon" style="background:#EFF6FF">📊</div><div><div class="stat-value">{{ avgGpa }}</div><div class="stat-label">平均绩点</div></div></div>
-          <div class="stat-card"><div class="stat-icon" style="background:#ECFDF5">📘</div><div><div class="stat-value">{{ totalCredits }}</div><div class="stat-label">已修学分</div></div></div>
+          <div class="stat-card"><div class="stat-icon stat-icon--blue">📊</div><div><div class="stat-value">{{ avgGpa }}</div><div class="stat-label">平均绩点</div></div></div>
+          <div class="stat-card"><div class="stat-icon stat-icon--green">📘</div><div><div class="stat-value">{{ totalCredits }}</div><div class="stat-label">已修学分</div></div></div>
         </div>
-        <div class="content-card">
+        <div class="content-card card-accent--success">
           <el-table :data="scores" stripe>
             <el-table-column prop="course_name" label="课程名" min-width="150" />
             <el-table-column prop="credit" label="学分" width="70" />

@@ -65,3 +65,64 @@ function handleFile(file) { selectedFile.value=file.raw; fileReady.value=true }
 async function submitImport() { uploading.value=true; importMsg.value=''; try { const r=await importScores(imp.value.schedule_id,selectedFile.value); importMsg.value=`成功导入${r.success_count}条`; if(r.warnings?.length) importMsg.value+=' | '+r.warnings.join(',') } finally { uploading.value=false } }
 onMounted(loadCourses)
 </script>
+
+<style scoped>
+/* ── Page Header Enhancement ── */
+.page-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 2px solid var(--color-border-light);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.3px;
+}
+.page-title::before {
+  content: '';
+  width: 4px;
+  height: 24px;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* ── Content Card Accent ── */
+.content-card {
+  border-top: 3px solid var(--color-primary);
+  animation: fadeInUp 0.35s ease-out;
+}
+
+/* ── Upload Enhancement ── */
+.el-upload-dragger {
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+}
+.el-upload-dragger:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+
+/* ── Tab Content Transitions ── */
+.el-tab-pane {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ── Button Spacing ── */
+.el-button + .el-button {
+  margin-left: 8px;
+}
+
+/* ── Empty State / Import Message ── */
+p[style*="color:#059669"] {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 12px;
+  background: var(--color-success-bg);
+  border-radius: var(--radius-sm);
+  display: inline-block;
+}
+</style>

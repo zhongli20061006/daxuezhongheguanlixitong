@@ -1,9 +1,15 @@
 <template>
-  <div class="page">
-    <h2>培养方案</h2>
+  <div class="page-container">
+    <div class="page-header">
+      <div class="page-header-icon" style="background:var(--color-info-bg);color:var(--color-info)">🎯</div>
+      <div>
+        <h2 class="page-title" style="margin:0">培养方案</h2>
+        <div class="page-subtitle">培养计划查看与毕业审核进度</div>
+      </div>
+    </div>
     <el-empty v-if="!plan" description="未找到匹配的培养方案" :image-size="80" />
     <template v-else>
-      <el-card style="margin-bottom:16px">
+      <div class="content-card card-accent--info">
         <el-descriptions :column="3" border>
           <el-descriptions-item label="专业">{{ plan.major }}</el-descriptions-item>
           <el-descriptions-item label="年级">{{ plan.grade }}级</el-descriptions-item>
@@ -21,7 +27,7 @@
             <el-tag v-else type="info">未审核</el-tag>
           </el-descriptions-item>
         </el-descriptions>
-      </el-card>
+      </div>
 
       <h3 style="margin-bottom:12px">课程列表</h3>
       <el-table :data="courses" border stripe v-loading="loading" empty-text="无课程数据">
@@ -46,7 +52,7 @@
       <el-divider />
       <h3 style="margin-bottom:12px">限选分组进度</h3>
       <el-empty v-if="!groups.length" description="无限选课要求" :image-size="80" />
-      <el-card v-for="g in groups" :key="g.name" style="margin-bottom:8px">
+      <div v-for="g in groups" :key="g.name" class="content-card card-left-accent" style="margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span><b>{{ g.name }}</b>：已选 {{ g.passed }}/{{ g.required }} 门</span>
           <el-progress :percentage="g.required ? Math.round(g.passed/g.required*100) : 0" :stroke-width="12" style="flex:1;margin:0 16px" />
@@ -54,7 +60,7 @@
             {{ g.passed >= g.required ? '达标' : '未达标' }}
           </el-tag>
         </div>
-      </el-card>
+      </div>
 
       <!-- Audit Result -->
       <el-divider />
@@ -110,5 +116,5 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { max-width: 1000px; margin: 20px auto; padding: 0 16px; }
+/* Page uses global .page-container from global.css */
 </style>

@@ -28,3 +28,56 @@ async function fetchRepairs(){loading.value=true;try{const r=await getRepairs(st
 async function updateStatus(id,s){try{await updateRepairStatus(id,s);ElMessage.success('状态更新成功');fetchRepairs()}catch{}}
 onMounted(fetchRepairs)
 </script>
+
+<style scoped>
+/* ── Page Header Enhancement ── */
+.page-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 2px solid var(--color-border-light);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.3px;
+}
+.page-title::before {
+  content: '';
+  width: 4px;
+  height: 24px;
+  background: var(--color-warning);
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* ── Content Card Accent (repair page) ── */
+.content-card {
+  border-top: 3px solid var(--color-warning);
+  animation: fadeInUp 0.35s ease-out;
+}
+
+/* ── Filter Area Enhancement ── */
+div[style*="display:flex;gap:12px;margin-bottom:12px"] {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-light);
+  margin-bottom: 16px !important;
+  gap: 12px;
+}
+
+/* ── Empty State Enhancement ── */
+.el-empty__description {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .page-title { font-size: 19px; }
+  div[style*="display:flex;gap:12px;margin-bottom:12px"] {
+    flex-wrap: wrap;
+  }
+}
+</style>

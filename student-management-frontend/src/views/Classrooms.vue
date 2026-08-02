@@ -71,13 +71,112 @@ onMounted(loadMyReservations)
 </script>
 
 <style scoped>
-.room-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-.room-card { background:#fff; border-radius:8px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); border-left:4px solid #059669; cursor:pointer; transition:box-shadow .15s; }
-.room-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.12); }
-.room-card.已取消 { border-left-color:#6B7280; opacity:.7; }
-.room-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-.room-name { font-size:18px; font-weight:600; }
-.room-info { font-size:13px; color:#6B7280; margin:2px 0; }
-.room-tags { margin-top:6px; display:flex; gap:4px; }
-@media (max-width:768px) { .room-grid { grid-template-columns:1fr; } }
+/* ── Page Header Enhancement ── */
+.page-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 2px solid var(--color-border-light);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.3px;
+}
+.page-title::before {
+  content: '';
+  width: 4px;
+  height: 24px;
+  background: var(--color-success);
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* ── Search Card Enhancement ── */
+.content-card:first-of-type {
+  border-top: 3px solid var(--color-success);
+  animation: fadeInUp 0.35s ease-out;
+}
+
+/* ── Room Grid ── */
+.room-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  animation: fadeInUp 0.4s ease-out;
+}
+
+/* ── Room Card ── */
+.room-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-sm);
+  border-left: 4px solid var(--color-success);
+  cursor: pointer;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  border: 1px solid var(--color-border-light);
+}
+.room-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+.room-card.已取消 {
+  border-left-color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+/* ── Room Card Inner Elements ── */
+.room-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.room-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.room-info {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  margin: 3px 0;
+}
+.room-tags {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── "My Reservations" Card ── */
+.content-card + .content-card {
+  border-top: 3px solid var(--color-info);
+}
+
+/* ── "My Reservations" Heading ── */
+h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-md);
+  letter-spacing: -0.2px;
+}
+
+/* ── Empty State Enhancement ── */
+.el-empty__description {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .page-title { font-size: 19px; }
+  .room-grid { grid-template-columns: 1fr; gap: 10px; }
+  .room-card { padding: 14px; }
+}
 </style>

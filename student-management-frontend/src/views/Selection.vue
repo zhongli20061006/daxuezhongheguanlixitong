@@ -1,10 +1,16 @@
 <template>
   <div class="page-container">
-    <h2 class="page-title">选课中心</h2>
+    <div class="page-header">
+      <div class="page-header-icon" style="background:var(--color-info-bg);color:var(--color-info)">📚</div>
+      <div>
+        <h2 class="page-title" style="margin:0">选课中心</h2>
+        <div class="page-subtitle">选课与退课管理</div>
+      </div>
+    </div>
     <div class="stat-cards">
-      <div class="stat-card"><div class="stat-icon" style="background:#EFF6FF">📘</div><div><div class="stat-value">{{ selectionStore.selectedCredits }}</div><div class="stat-label">已选学分</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#ECFDF5">📚</div><div><div class="stat-value">{{ availableCount }}</div><div class="stat-label">可选课程</div></div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:#FFFBEB">✅</div><div><div class="stat-value">{{ selectionStore.myCourses.length }}</div><div class="stat-label">已选课程</div></div></div>
+      <div class="stat-card"><div class="stat-icon stat-icon--blue">📘</div><div><div class="stat-value">{{ selectionStore.selectedCredits }}</div><div class="stat-label">已选学分</div></div></div>
+      <div class="stat-card"><div class="stat-icon stat-icon--green">📚</div><div><div class="stat-value">{{ availableCount }}</div><div class="stat-label">可选课程</div></div></div>
+      <div class="stat-card"><div class="stat-icon stat-icon--orange">✅</div><div><div class="stat-value">{{ selectionStore.myCourses.length }}</div><div class="stat-label">已选课程</div></div></div>
     </div>
     <el-tabs v-model="activeTab">
       <el-tab-pane label="可选课程" name="available">
@@ -89,11 +95,12 @@ onMounted(() => { selectionStore.fetchAvailableCourses(); selectionStore.fetchMy
 </script>
 
 <style scoped>
-.course-card-item { background:#fff; border-radius:8px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:12px; transition:all .2s; }
-.course-card-item.selected { background:#F0FDF4; border-left:4px solid #059669; }
+.course-card-item { background:#fff; border-radius:var(--radius-lg); padding:16px 20px; box-shadow:var(--shadow-sm); margin-bottom:12px; transition:all var(--transition-base); border:1px solid var(--color-border-light); border-left:4px solid transparent; }
+.course-card-item:hover { box-shadow:var(--shadow-md); transform:translateY(-1px); }
+.course-card-item.selected { background:#F0FDF4; border-left-color:var(--color-success); }
 .card-row1 { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
 .card-row2 { display:flex; gap:16px; font-size:13px; color:#6B7280; margin-bottom:4px; flex-wrap:wrap; }
 .card-row3 { font-size:12px; color:#9CA3AF; margin-bottom:8px; }
 .card-row4 { display:flex; align-items:center; }
-.course-title { font-size:16px; font-weight:600; }
+.course-title { font-size:16px; font-weight:600; color:var(--color-text-primary); }
 </style>

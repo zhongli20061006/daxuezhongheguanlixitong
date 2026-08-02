@@ -97,11 +97,38 @@ onMounted(load)
 </script>
 
 <style scoped>
-.info-section { display:flex; gap:24px; align-items:flex-start; }
-.avatar-circle { width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg,#2563EB,#1E3A5F); display:flex; align-items:center; justify-content:center; font-size:28px; color:#fff; flex-shrink:0; }
+.info-section { display:flex; gap:28px; align-items:flex-start; }
+.avatar-circle {
+  width:80px; height:80px; border-radius:50%;
+  background:linear-gradient(135deg, #2563EB, #1E40AF);
+  display:flex; align-items:center; justify-content:center;
+  font-size:32px; color:#fff; flex-shrink:0;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
 .info-main { flex:1; }
-.info-name { font-size:22px; font-weight:700; margin-bottom:12px; }
-.info-line { font-size:14px; color:#4B5563; margin:6px 0; }
-.info-tag { display:inline-block; color:#6B7280; font-size:12px; background:#F3F4F6; padding:1px 8px; border-radius:4px; margin-right:8px; min-width:60px; text-align:center; }
-@media (max-width:768px) { .info-section { flex-direction:column; align-items:center; text-align:center; } }
+.info-name { font-size:22px; font-weight:700; margin-bottom:14px; color: var(--color-text-primary, #111827); }
+.info-line { font-size:14px; color: var(--color-text-secondary, #374151); margin:8px 0; }
+.info-tag {
+  display:inline-block; color: var(--color-text-tertiary, #6B7280);
+  font-size:12px; background: var(--color-bg-alt, #F8FAFC);
+  padding:2px 10px; border-radius: var(--radius-xs, 4px);
+  margin-right:10px; min-width:64px; text-align:center;
+  border: 1px solid var(--color-border-light, #F3F4F6);
+}
+
+.content-card {
+  border: 1px solid var(--color-border-light, #F3F4F6);
+  border-radius: var(--radius-lg, 12px);
+}
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-md, 16px);
+}
+
+@media (max-width:768px) {
+  .info-section { flex-direction:column; align-items:center; text-align:center; }
+  .avatar-circle { width:72px; height:72px; font-size:28px; }
+}
 </style>

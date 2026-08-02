@@ -79,5 +79,58 @@ onMounted(load)
 </script>
 
 <style scoped>
-.page { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
+/* ── Page Layout Enhancement ── */
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--space-lg);
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ── Page Header Enhancement ── */
+h2 {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 2px solid var(--color-border-light);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.3px;
+}
+h2::before {
+  content: '';
+  width: 4px;
+  height: 24px;
+  background: var(--color-warning);
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* ── Table Card Wrapper ── */
+.el-table {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border-light);
+}
+
+/* ── Empty State Enhancement ── */
+.el-empty__description {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+/* ── Dialog Enhancements ── */
+.el-dialog {
+  border-radius: var(--radius-lg);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .page { padding: 12px; }
+  h2 { font-size: 19px; }
+}
 </style>

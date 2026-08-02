@@ -1,8 +1,15 @@
 <template>
   <div class="page-container">
-    <div class="content-card">
+    <div class="page-header">
+      <div class="page-header-icon" style="background:var(--color-primary-bg);color:var(--color-primary)">📅</div>
+      <div>
+        <h2 class="page-title" style="margin:0">我的课表</h2>
+        <div class="page-subtitle">查看本周课程安排与上课信息</div>
+      </div>
+    </div>
+    <div class="content-card card-accent">
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px">
-        <h2 class="page-title" style="margin-bottom:0;flex:1">我的课表</h2>
+        <h2 class="page-title" style="margin-bottom:0;flex:1;font-size:18px">第{{ currentWeek }}周 课程表</h2>
         <el-tag type="primary">2024-2025-1</el-tag>
         <el-button text circle @click="prevWeek" :disabled="currentWeek <= 1">◀</el-button>
         <el-select v-model="currentWeek" style="width:100px" @change="onWeekChange">

@@ -1,24 +1,576 @@
-.page-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
-.content-card { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 16px; }
-.page-title { font-size: 24px; font-weight: 600; color: #1F2937; margin-bottom: 24px; }
+/* ================================================================
+   Design Tokens & Global Styles — Student Management System
+   ================================================================ */
 
-.stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.stat-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); display: flex; align-items: center; gap: 16px; }
-.stat-card .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-.stat-card .stat-value { font-size: 28px; font-weight: 700; color: #1F2937; }
-.stat-card .stat-label { font-size: 13px; color: #6B7280; }
+:root {
+  /* ── Brand Colors ── */
+  --color-primary: #2563EB;
+  --color-primary-light: #3B82F6;
+  --color-primary-dark: #1D4ED8;
+  --color-primary-bg: #EFF6FF;
 
-/* ───── Sidebar layout support ───── */
-/* The app-main is provided by AppNavbar's scoped styles.
-   This ensures page-container content works within the sidebar layout. */
-.app-main {
-  flex: 1;
-  overflow-y: auto;
+  --color-success: #059669;
+  --color-success-light: #10B981;
+  --color-success-bg: #ECFDF5;
+
+  --color-warning: #D97706;
+  --color-warning-light: #F59E0B;
+  --color-warning-bg: #FFFBEB;
+
+  --color-danger: #DC2626;
+  --color-danger-light: #EF4444;
+  --color-danger-bg: #FEF2F2;
+
+  --color-info: #6366F1;
+  --color-info-bg: #EEF2FF;
+
+  /* ── Neutral Palette ── */
+  --color-bg: #F0F2F5;
+  --color-bg-alt: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-border: #E5E7EB;
+  --color-border-light: #F3F4F6;
+
+  --color-text-primary: #111827;
+  --color-text-secondary: #374151;
+  --color-text-tertiary: #6B7280;
+  --color-text-muted: #9CA3AF;
+  --color-text-inverse: #FFFFFF;
+
+  /* ── Sidebar / Header ── */
+  --color-sidebar-bg: #0F172A;
+  --color-sidebar-hover: rgba(255,255,255,0.08);
+  --color-sidebar-active: rgba(37, 99, 235, 0.25);
+  --color-header-bg: linear-gradient(135deg, #0F172A 0%, #1E3A5F 50%, #1E40AF 100%);
+
+  /* ── Shadow Levels ── */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.06), 0 4px 6px rgba(0, 0, 0, 0.03);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.08), 0 8px 10px rgba(0, 0, 0, 0.03);
+  --shadow-card-hover: 0 8px 25px rgba(0, 0, 0, 0.1);
+
+  /* ── Border Radius ── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* ── Spacing Scale ── */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* ── Transitions ── */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 350ms ease;
 }
 
-/* ───── Responsive ───── */
+/* ================================================================
+   Global Reset & Base
+   ================================================================ */
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+               'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica,
+               Arial, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+a:hover {
+  color: var(--color-primary-light);
+}
+
+/* ================================================================
+   Scrollbar Styling
+   ================================================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* ================================================================
+   Layout Helpers
+   ================================================================ */
+
+.page-container {
+  padding: var(--space-lg);
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 2px solid var(--color-border-light);
+}
+
+.page-header-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.page-subtitle {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  margin-top: var(--space-xs);
+}
+
+/* ================================================================
+   Card System
+   ================================================================ */
+
+.content-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--space-md);
+  transition: box-shadow var(--transition-base);
+  border: 1px solid var(--color-border-light);
+}
+
+.content-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Card with colored accent top border */
+.card-accent {
+  border-top: 3px solid var(--color-primary);
+}
+.card-accent--success {
+  border-top-color: var(--color-success);
+}
+.card-accent--warning {
+  border-top-color: var(--color-warning);
+}
+.card-accent--danger {
+  border-top-color: var(--color-danger);
+}
+.card-accent--info {
+  border-top-color: var(--color-info);
+}
+
+/* Card with colored left border */
+.card-left-accent {
+  border-left: 4px solid var(--color-primary);
+}
+.card-left-accent--success {
+  border-left-color: var(--color-success);
+}
+.card-left-accent--warning {
+  border-left-color: var(--color-warning);
+}
+.card-left-accent--danger {
+  border-left-color: var(--color-danger);
+}
+
+/* ================================================================
+   Stat Cards
+   ================================================================ */
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.stat-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  border: 1px solid var(--color-border-light);
+  cursor: default;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
+}
+
+/* Pre-built stat icon colors */
+.stat-icon--blue   { background: var(--color-primary-bg); color: var(--color-primary); }
+.stat-icon--green  { background: var(--color-success-bg); color: var(--color-success); }
+.stat-icon--orange { background: var(--color-warning-bg); color: var(--color-warning); }
+.stat-icon--red    { background: var(--color-danger-bg);  color: var(--color-danger); }
+.stat-icon--purple { background: var(--color-info-bg);    color: var(--color-info); }
+
+/* ================================================================
+   Button Enhancements
+   ================================================================ */
+
+/* Make Element Plus buttons slightly rounder */
+.el-button {
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500;
+  transition: all var(--transition-fast) !important;
+}
+
+.el-button:hover {
+  transform: translateY(-1px);
+}
+
+.el-button:active {
+  transform: translateY(0);
+}
+
+.el-button--primary {
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+.el-button--primary:hover {
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.el-button--success {
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+}
+.el-button--danger {
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+}
+.el-button--warning {
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.25);
+}
+
+/* ================================================================
+   Table Enhancements
+   ================================================================ */
+
+.el-table {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.el-table th.el-table__cell {
+  background: var(--color-bg-alt) !important;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 13px;
+  border-bottom: 2px solid var(--color-border) !important;
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: var(--color-bg-alt);
+}
+
+.el-table__body tr:hover > td.el-table__cell {
+  background: var(--color-primary-bg) !important;
+}
+
+/* ================================================================
+   Form Enhancements
+   ================================================================ */
+
+.el-input__wrapper {
+  border-radius: var(--radius-sm) !important;
+  transition: all var(--transition-fast);
+}
+
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--color-border) inset;
+}
+
+.el-select .el-input__wrapper {
+  border-radius: var(--radius-sm) !important;
+}
+
+/* ================================================================
+   Tag Enhancements
+   ================================================================ */
+
+.el-tag {
+  border-radius: var(--radius-xs);
+  font-weight: 500;
+}
+
+/* ================================================================
+   Dialog Enhancements
+   ================================================================ */
+
+.el-dialog {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-xl);
+}
+
+.el-dialog__header {
+  border-bottom: 1px solid var(--color-border-light);
+  padding: 20px 24px 16px;
+  margin-right: 0;
+}
+
+.el-dialog__title {
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.el-dialog__footer {
+  border-top: 1px solid var(--color-border-light);
+  padding: 14px 24px;
+}
+
+/* ================================================================
+   Empty State Enhancements
+   ================================================================ */
+
+.el-empty__description {
+  color: var(--color-text-muted);
+}
+
+/* ================================================================
+   Tabs Enhancements
+   ================================================================ */
+
+.el-tabs__nav-wrap::after {
+  height: 1px;
+  background: var(--color-border);
+}
+
+.el-tabs__item {
+  font-weight: 500;
+  transition: color var(--transition-fast);
+}
+
+/* ================================================================
+   Alert Enhancements
+   ================================================================ */
+
+.el-alert {
+  border-radius: var(--radius-md) !important;
+}
+
+/* ================================================================
+   Loading / Skeleton
+   ================================================================ */
+
+.el-loading-mask {
+  border-radius: var(--radius-md);
+}
+
+/* ================================================================
+   Utility Classes
+   ================================================================ */
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gap-sm { gap: var(--space-sm); }
+.gap-md { gap: var(--space-md); }
+.gap-lg { gap: var(--space-lg); }
+
+.mb-sm { margin-bottom: var(--space-sm); }
+.mb-md { margin-bottom: var(--space-md); }
+.mb-lg { margin-bottom: var(--space-lg); }
+
+/* ================================================================
+   Animations
+   ================================================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.25s ease-out;
+}
+
+/* Staggered children animation helper */
+.stagger-children > * {
+  opacity: 0;
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.18s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.24s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.30s; }
+
+/* ================================================================
+   Page Transition (used by App.vue)
+   ================================================================ */
+
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* ================================================================
+   Responsive
+   ================================================================ */
+
 @media (max-width: 768px) {
-  .page-container { padding: 12px; }
-  .page-title { font-size: 20px; }
-  .stat-cards { grid-template-columns: 1fr 1fr; }
+  :root {
+    --space-lg: 16px;
+  }
+
+  .page-container {
+    padding: 12px;
+  }
+
+  .page-title {
+    font-size: 19px;
+  }
+
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .stat-cards {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 14px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-cards {
+    grid-template-columns: 1fr;
+  }
 }

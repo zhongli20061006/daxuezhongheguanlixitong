@@ -1,8 +1,16 @@
 <template>
   <div class="page-container">
-    <h2 class="page-title">请假申请</h2>
-    <el-button type="primary" @click="dialogVisible=true" style="margin-bottom:16px">提交请假申请</el-button>
-    <div class="content-card">
+    <div class="page-header">
+      <div class="page-header-icon" style="background:var(--color-warning-bg);color:var(--color-warning)">📝</div>
+      <div>
+        <h2 class="page-title" style="margin:0">请假申请</h2>
+        <div class="page-subtitle">提交请假申请与查看审批进度</div>
+      </div>
+    </div>
+    <div class="mb-md">
+      <el-button type="primary" @click="dialogVisible=true">提交请假申请</el-button>
+    </div>
+    <div class="content-card card-accent--info">
       <el-table :data="leaves" border stripe v-loading="loading" empty-text="暂无请假记录">
         <el-table-column prop="id" label="编号" width="60" />
         <el-table-column prop="start_date" label="开始日期" width="110" />
@@ -15,7 +23,7 @@
       </el-table>
     </div>
     <el-dialog v-model="dialogVisible" title="提交请假申请" width="480px">
-      <div class="content-card">
+      <div class="content-card card-left-accent--warning">
         <el-form :model="form" label-width="80px">
           <el-form-item label="开始日期"><input type="date" v-model="form.start_date" class="native-date" /></el-form-item>
           <el-form-item label="结束日期"><input type="date" v-model="form.end_date" class="native-date" /></el-form-item>
@@ -26,7 +34,7 @@
     </el-dialog>
     <el-dialog v-model="detailVisible" title="请假详情" width="520px">
       <div v-if="detail">
-        <div class="content-card">
+        <div class="content-card card-left-accent--warning">
           <el-descriptions :column="2" border>
             <el-descriptions-item label="编号">{{ detail.leave.id }}</el-descriptions-item>
             <el-descriptions-item label="状态"><el-tag :type="statusType(detail.leave.status)">{{ detail.leave.status }}</el-tag></el-descriptions-item>
