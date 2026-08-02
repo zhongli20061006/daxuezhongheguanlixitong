@@ -27,8 +27,9 @@ request.interceptors.response.use(
     const detail = error.response?.data?.detail || '请求失败'
     const url = error.config?.url || ''
     if (status === 401) {
-      // 跳过 /auth/me 和 /auth/logout，这些端点预期可能 401（未登录时的正常状态）
-      if (url.includes('/auth/me') || url.includes('/auth/logout')) {
+      // 跳过 /auth/me、/auth/logout、/auth/login，这些端点的 401 属于正常业务状态
+      // （未登录、退出登录、用户名或密码错误），不应误报为"登录已过期"
+      if (url.includes('/auth/me') || url.includes('/auth/logout') || url.includes('/auth/login')) {
         return Promise.reject(error)
       }
       localStorage.removeItem('sms_token')
