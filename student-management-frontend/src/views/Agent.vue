@@ -125,6 +125,22 @@ watch(
   }
 )
 
+watch(
+  () => store.messages.length,
+  () => {
+    const navMsg = store.messages.find(m => m.navigation)
+    if (navMsg) router.push(navMsg.navigation)
+    scrollToBottom()
+  }
+)
+
+watch(
+  () => store.loadingHistory,
+  (loading) => {
+    if (!loading) scrollToBottom()
+  }
+)
+
 function isPlan(m) {
   return !!(planOf(m) && Array.isArray(planOf(m).courses))
 }
@@ -177,7 +193,19 @@ function sessionTitle(s) {
 
 function scrollToBottom() {
   nextTick(() => {
-    if (listRef.value) listRef.value.scrollTop = listRef.value.scrollHeight
+    const el = listRef.value
+    if (!el) return
+    // 找到最近的滚动容器；整页滚动时退回窗口滚动
+    let node = el
+    while (node && node !== document.body) {
+      const style = getComputedStyle(node)
+      if (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight) {
+        node.scrollTop = node.scrollHeight
+        return
+      }
+      node = node.parentElement
+    }
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })
   })
 }
 
@@ -192,10 +220,12 @@ function cancelMsg(m) {
 </script>
 
 <style scoped>
-.agent-layout { display: flex; height: calc(100vh - 48px); }
+.agent-layout { display: flex; min-height: calc(100vh - 48px); }
 .session-panel {
   width: 220px; border-right: 1px solid #e5e7eb; background: #fff;
   display: flex; flex-direction: column; padding: 12px;
+  align-self: flex-start; position: sticky; top: 0;
+  height: calc(100vh - 48px);
 }
 .new-session-btn { width: 100%; margin-bottom: 12px; }
 .session-list { flex: 1; overflow-y: auto; }
@@ -207,22 +237,23 @@ function cancelMsg(m) {
 .session-item.active { background: #e0e7ff; }
 .session-title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-panel {
-  flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden;
+  flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0;
 }
 .chat-header {
   display: flex; align-items: center; gap: 12px; padding: 12px 20px;
   border-bottom: 1px solid #e5e7eb; background: #fff;
+  position: sticky; top: 0; z-index: 20;
 }
 .chat-header h2 { font-size: 16px; margin: 0; }
 .model-status { font-size: 12px; color: #f59e0b; }
 .model-status.ok { color: #10b981; }
 .message-list {
-  flex: 1; min-height: 0; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px;
-  scroll-behavior: smooth;
+  flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 12px;
 }
 .msg {
   max-width: 75%; padding: 10px 14px; border-radius: 12px; background: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08); white-space: pre-wrap; align-self: flex-start;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08); white-space: pre-wrap;
+  overflow-wrap: anywhere; word-break: break-word; align-self: flex-start;
 }
 .msg.own { align-self: flex-end; background: #2563eb; color: #fff; }
 .msg.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
@@ -230,7 +261,10 @@ function cancelMsg(m) {
 .msg.typing { color: #9ca3af; font-style: italic; }
 .msg-card { max-width: 80%; align-self: flex-start; }
 .card-head { display: flex; align-items: center; justify-content: space-between; }
-.card-content pre { margin: 0; white-space: pre-wrap; font-family: inherit; font-size: 13px; }
+.card-content pre {
+  margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
+  font-family: inherit; font-size: 13px;
+}
 .plan-box { display: flex; flex-direction: column; gap: 10px; }
 .plan-summary { margin: 0; font-weight: 600; color: #1e293b; }
 .plan-item {
@@ -249,5 +283,11 @@ function cancelMsg(m) {
 .confirm-actions { display: flex; gap: 8px; margin-top: 8px; }
 .quick-prompts { padding: 8px 20px; display: flex; gap: 8px; flex-wrap: wrap; }
 .prompt-tag { cursor: pointer; }
-.input-bar { display: flex; gap: 8px; padding: 12px 20px; border-top: 1px solid #e5e7eb; background: #fff; }
+.input-bar {
+  display: flex; gap: 8px; padding: 12px 20px; border-top: 1px solid #e5e7eb; background: #fff;
+  position: sticky; bottom: 0; z-index: 20;
+}
+@media (max-width: 768px) {
+  .input-bar { bottom: 56px; }
+}
 </style>

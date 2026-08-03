@@ -11,7 +11,7 @@ from app.deps import get_current_user
 from app.services.agent import AgentMessage
 from app.services.agent.actions import ActionExecutor
 from app.services.agent.confirmations import ConfirmationStore
-from app.services.agent.intent import IntentResolver
+from app.services.agent.intent import IntentResolver, is_cancel_message, is_confirm_message
 from app.services.agent.llm import OllamaBusy, OllamaClient, OllamaTimeout, OllamaUnavailable
 from app.services.agent.session import SessionStore
 
@@ -66,6 +66,28 @@ async def agent_chat(
         session_id = session_store.create(user_id)["session_id"]
 
     session_store.add_message(user_id, session_id, "user", req.message)
+    if is_confirm_message(req.message):
+        pending = confirmation_store.consume_latest(user_id)
+        if pending is not None:
+            try:
+                messages = await executor.execute_confirm(pending, db)
+            except Exception:
+                logger.exception("agent text confirm failed")
+                messages = [AgentMessage(kind="error", content="确认执行失败，请稍后重试")]
+            for m in messages:
+                session_store.add_message(user_id, session_id, "assistant", m.content or m.title, kind=m.kind)
+            return {"session_id": session_id, "messages": messages, "source": "confirm"}
+        hint = AgentMessage(kind="text", content="当前没有待确认的操作，直接告诉我你想做什么就行")
+        session_store.add_message(user_id, session_id, "assistant", hint.content, kind=hint.kind)
+        return {"session_id": session_id, "messages": [hint], "source": "none"}
+    if is_cancel_message(req.message):
+        cancelled = confirmation_store.discard_latest(user_id)
+        hint = AgentMessage(
+            kind="text",
+            content="已取消待确认的操作" if cancelled else "当前没有待取消的操作",
+        )
+        session_store.add_message(user_id, session_id, "assistant", hint.content, kind=hint.kind)
+        return {"session_id": session_id, "messages": [hint], "source": "none"}
     try:
         intents, source = await resolver.resolve(req.message)
     except Exception:

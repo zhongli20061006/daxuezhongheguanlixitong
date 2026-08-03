@@ -31,6 +31,8 @@ NOT_FOR_ADMIN = frozenset({IntentType.reserve_classroom, IntentType.repair_submi
 
 REPAIR_TYPES = frozenset(t.value for t in RepairType)
 
+_RELATIVE_DAY = {"今天": 0, "明天": 1, "后天": 2, "大后天": 3}
+
 KNOWN_PAGES = frozenset({
     "/", "/dashboard", "/schedule", "/selection", "/scores", "/scores/input",
     "/classrooms", "/repairs", "/repairs/manage", "/leaves", "/plan",
@@ -379,11 +381,14 @@ class ActionExecutor:
     def _norm_date(value: str) -> date | None:
         if not value:
             return None
+        key = str(value).strip()
+        if key in _RELATIVE_DAY:
+            return date.today() + timedelta(days=_RELATIVE_DAY[key])
         try:
-            return date.fromisoformat(value.strip())
+            return date.fromisoformat(key)
         except ValueError:
             pass
-        m = re.match(r"(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})日?", value.strip())
+        m = re.match(r"(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})日?", key)
         if m:
             try:
                 return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
@@ -393,7 +398,7 @@ class ActionExecutor:
 
     def _precheck_leave(self, params: dict) -> tuple[bool, str, dict]:
         start = self._norm_date(params.get("start_date", ""))
-        end = self._norm_date(params.get("end_date", ""))
+        end = self._norm_date(params.get("end_date", "")) or start  # 未指定结束日期默认单天
         reason = (params.get("reason") or "").strip()
         if not start or not end:
             return False, "请告诉我请假的开始和结束日期（格式：2026-08-05）", {}

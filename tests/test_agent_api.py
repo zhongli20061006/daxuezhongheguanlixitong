@@ -96,6 +96,15 @@ def fake_llm(monkeypatch):
     return fake
 
 
+@pytest.fixture(autouse=True)
+def clean_confirmation_store():
+    """每个用例前清空确认令牌，避免模块级单例跨用例残留。"""
+    from app.api import agent as agent_api
+
+    agent_api.confirmation_store._items.clear()
+    yield
+
+
 @pytest.mark.asyncio
 async def test_chat_enroll_confirmation(client, db, test_engine, auth_override, fake_llm):
     await _seed_agent_data(db, test_engine)
@@ -261,3 +270,45 @@ async def test_chat_reserve_confirmation_and_confirm(client, db, test_engine, au
     assert len(reservations) == 1
     assert reservations[0].classroom_id == 1
     assert reservations[0].week == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_text_confirm_executes_leave(client, db, test_engine, auth_override, fake_llm):
+    """对话里直接回复"确认"应执行最近一次待确认操作，而不是被当成闲聊。"""
+    await _seed_agent_data(db, test_engine)
+    start = date.today() + timedelta(days=2)
+    msg = f"我要请假 {start.isoformat()} 到 {(start + timedelta(days=1)).isoformat()} 因为感冒"
+    resp = await client.post("/agent/chat", json={"message": msg})
+    assert resp.status_code == 200
+    assert "confirmation" in [m["kind"] for m in resp.json()["messages"]]
+
+    resp2 = await client.post("/agent/chat", json={"message": "确认"})
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["source"] == "confirm"
+    assert data2["messages"][0]["kind"] == "card"
+    assert "请假" in data2["messages"][0]["title"]
+    leaves = (await db.execute(select(LeaveApplication))).scalars().all()
+    assert len(leaves) == 1
+
+    # 令牌已消费：再次"确认"给出提示而非重复执行
+    resp3 = await client.post("/agent/chat", json={"message": "确认"})
+    assert resp3.status_code == 200
+    assert resp3.json()["messages"][0]["content"] == "当前没有待确认的操作，直接告诉我你想做什么就行"
+
+
+@pytest.mark.asyncio
+async def test_chat_text_cancel_discards_pending(client, db, test_engine, auth_override, fake_llm):
+    """对话里回复"取消"应放弃待确认操作，之后"确认"不再执行。"""
+    await _seed_agent_data(db, test_engine)
+    start = date.today() + timedelta(days=2)
+    msg = f"我要请假 {start.isoformat()} 到 {(start + timedelta(days=1)).isoformat()} 因为感冒"
+    resp = await client.post("/agent/chat", json={"message": msg})
+    assert "confirmation" in [m["kind"] for m in resp.json()["messages"]]
+
+    resp2 = await client.post("/agent/chat", json={"message": "取消"})
+    assert resp2.status_code == 200
+    assert "已取消" in resp2.json()["messages"][0]["content"]
+
+    resp3 = await client.post("/agent/chat", json={"message": "确认"})
+    assert resp3.json()["messages"][0]["content"] == "当前没有待确认的操作，直接告诉我你想做什么就行"

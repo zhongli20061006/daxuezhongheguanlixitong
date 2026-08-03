@@ -1,6 +1,7 @@
 """意图识别：LLM 优先（JSON 抽取，失败重试一次），规则引擎兜底，短 TTL 缓存。"""
 import re
 import time
+from datetime import date, timedelta
 from enum import Enum
 
 from pydantic import BaseModel, Field, ValidationError
@@ -64,6 +65,11 @@ _REPAIR_TYPE_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
 
 _WEEKDAY_CN_MAP = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "日": 7, "天": 7}
 
+_RELATIVE_DAY = {"今天": 0, "明天": 1, "后天": 2, "大后天": 3}
+
+_CONFIRM_CHARS = frozenset("嗯好可以确认确定同意执行提交没问题行是的就这么办")
+_CANCEL_WORDS = ("取消", "不用", "算了", "撤销", "不办了", "别了")
+
 
 def _norm_ymd(year: str, month: str, day: str) -> str:
     return f"{int(year)}-{int(month):02d}-{int(day):02d}"
@@ -76,10 +82,28 @@ def _extract_leave_params(text: str) -> dict[str, str]:
     if dates:
         params["start_date"] = _norm_ymd(*dates[0])
         params["end_date"] = _norm_ymd(*dates[-1])
+    else:
+        m = re.search(r"(今天|明天|后天|大后天)", text)
+        if m:
+            day = date.today() + timedelta(days=_RELATIVE_DAY[m.group(1)])
+            params["start_date"] = day.isoformat()
+            params["end_date"] = day.isoformat()
     m = re.search(r"(?:因为|原因|理由)[:：]?\s*([^，。,.！!？?\s]{2,30})", text)
     if m:
         params["reason"] = m.group(1).strip()
     return params
+
+
+def is_confirm_message(text: str) -> bool:
+    """整句都是确认短语（如"确认""好的""没问题"）时视为文本确认。"""
+    s = text.strip().strip("，,。.!！?？~～ \t")
+    return 1 <= len(s) <= 10 and all(c in _CONFIRM_CHARS for c in s)
+
+
+def is_cancel_message(text: str) -> bool:
+    """短句包含取消语义（如"取消""不用了""算了"）时视为放弃待确认操作。"""
+    s = text.strip().strip("，,。.!！?？~～ \t")
+    return 1 <= len(s) <= 12 and any(w in s for w in _CANCEL_WORDS)
 
 
 def _extract_repair_params(text: str) -> dict[str, str]:

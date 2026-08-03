@@ -206,11 +206,51 @@ async def test_leave_apply_missing_params_fails(db, test_engine):
     await _seed(db, test_engine)
     executor = _executor()
     msgs = await executor.execute(
-        Intent(intent=IntentType.leave_apply, params={"start_date": "2026-08-05"}),
+        Intent(intent=IntentType.leave_apply, params={}),
         "S2024001", "student", "sess1", db,
     )
     assert msgs[0].kind == "error"
     assert "日期" in msgs[0].content
+
+
+@pytest.mark.asyncio
+async def test_leave_apply_missing_reason_fails(db, test_engine):
+    await _seed(db, test_engine)
+    executor = _executor()
+    start = (date.today() + timedelta(days=1)).isoformat()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.leave_apply, params={"start_date": start}),
+        "S2024001", "student", "sess1", db,
+    )
+    assert msgs[0].kind == "error"
+    assert "原因" in msgs[0].content
+
+
+@pytest.mark.asyncio
+async def test_leave_apply_single_day_default(db, test_engine):
+    await _seed(db, test_engine)
+    executor = _executor()
+    start = (date.today() + timedelta(days=1)).isoformat()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.leave_apply, params={"start_date": start, "reason": "事假"}),
+        "S2024001", "student", "sess1", db,
+    )
+    assert msgs[0].kind == "confirmation"
+    assert msgs[0].data["total_days"] == 1
+
+
+@pytest.mark.asyncio
+async def test_leave_apply_relative_date(db, test_engine):
+    await _seed(db, test_engine)
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.leave_apply, params={
+            "start_date": "明天", "end_date": "后天", "reason": "感冒",
+        }),
+        "S2024001", "student", "sess1", db,
+    )
+    assert msgs[0].kind == "confirmation"
+    assert msgs[0].data["total_days"] == 2
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,11 @@
 """意图识别：规则匹配、LLM 优先、降级、缓存。"""
+from datetime import date, timedelta
+
 import pytest
 
-from app.services.agent.intent import IntentResolver, IntentType, match_rules
+from app.services.agent.intent import (
+    IntentResolver, IntentType, is_cancel_message, is_confirm_message, match_rules,
+)
 from app.services.agent.llm import OllamaUnavailable
 
 
@@ -76,6 +80,29 @@ def test_rules_reserve_classroom_not_navigate():
     """写操作关键词优先于裸页面词，避免"预约教室"被误判为跳转。"""
     intent = match_rules("预约教室D101")
     assert intent.intent == IntentType.reserve_classroom
+
+
+def test_rules_leave_apply_relative_date():
+    intent = match_rules("我要请假明天因为感冒")
+    assert intent.intent == IntentType.leave_apply
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    assert intent.params["start_date"] == tomorrow
+    assert intent.params["end_date"] == tomorrow
+    assert intent.params["reason"] == "感冒"
+
+
+def test_confirm_message_detection():
+    for msg in ("确认", "好的", "嗯嗯", "没问题", "同意", "就这么办", "可以"):
+        assert is_confirm_message(msg), msg
+    for msg in ("帮我查课表", "提交请假信息", "你好", "明天上什么课"):
+        assert not is_confirm_message(msg), msg
+
+
+def test_cancel_message_detection():
+    assert is_cancel_message("取消")
+    assert is_cancel_message("不用了")
+    assert is_cancel_message("算了")
+    assert not is_cancel_message("明天上什么课")
 
 
 @pytest.mark.asyncio
