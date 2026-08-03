@@ -90,3 +90,36 @@ PLAN_SYSTEM_PROMPT        # BASE + 学习规划师角色锚点 + 方案 JSON 结
 - 不存数据库、不做后台编辑界面；
 - 不改动规则引擎与确定性执行链路。
 
+---
+
+## 增补：智能体功能全量补齐（2026-08-03 追加）
+
+在统一提示词落地的同时，按既有"意图参数抽取 → 预检 → 确认卡片 → 确认执行"模式补齐 4 个新意图：
+
+| 意图 | 功能 | 适用角色 | 写操作 | 业务来源 |
+|------|------|----------|--------|----------|
+| `query_scores` | 查询我的成绩（含绩点） | student（教师可按学号查） | 否 | `GET /scores/student/{id}` |
+| `query_notifications` | 查看通知列表 + 未读数 | 全部角色 | 否 | `GET /notification/list`、`GET /notification/unread-count` |
+| `approve_leave` | 审批请假（通过/驳回） | teacher / admin | 是（确认卡片） | `POST /advisor/approve` → `leave_service.approve` |
+| `query_exams` | 我的考试 / 监考安排 | student / teacher | 否 | `GET /exam/my-exams`、`GET /exam/my-invigilations` |
+
+### 各意图要点
+
+- **query_scores**：无参时查自己（role_id 即学号）；教师可带 `params.student`（学号）。返回课程/分数/绩点卡片。
+- **query_notifications**：返回最近 5 条通知 + 未读数卡片。
+- **approve_leave**：`params.leave`（请假编号或学生姓名/学号，从待审批列表解析）+ `params.result`（通过/驳回）+ `params.comment`（意见，可选）。预检：记录存在且处于待审批状态、当前角色可审批；确认后调 `leave_service.approve`。角色限制 teacher/admin，加入 `NOT_FOR_STUDENT` 集合。
+- **query_exams**：按角色返回学生考试安排或教师监考安排。
+
+### 配套改动
+
+- `IntentType` 增加 4 个枚举；`INTENT_SYSTEM_PROMPT` 意图清单加入新意图及参数说明；
+- 规则兜底：新增关键词（"成绩/绩点"、"通知/未读"、"审批/通过请假/驳回"、"考试/监考"）与参数抽取；
+- 前端确认卡片信息行已通用渲染（`confirmInfo`），审批卡片复用无需改动；
+- 测试：每个新意图补动作层 + API 层用例，总量预计 91 → 100+；
+- README 指令表与功能状态同步更新。
+
+### 验证
+
+- 新增用例：成绩/通知/考试为只读卡片；审批走"预检 → 确认卡片 → 确认后状态流转"（含驳回路径）；
+- 现有 91 个用例保持全绿；
+- 前端零改动（确认卡片通用渲染已具备）。
