@@ -528,3 +528,59 @@ async def test_query_exams_student_returns_card(db, test_engine):
     assert msgs[0].kind == "card"
     assert msgs[0].data["exams"][0]["subject"] == "人工智能实战"
     assert msgs[0].data["exams"][0]["seat"] == 3
+
+
+async def _seed_pending_leave(db, test_engine) -> int:
+    await _seed(db, test_engine)
+    leave = LeaveApplication(
+        student_id="S2024001",
+        start_date=date.today() + timedelta(days=1),
+        end_date=date.today() + timedelta(days=1),
+        total_days=1, reason="感冒", status="审批中(辅导员)",
+    )
+    db.add(leave)
+    await db.commit()
+    await db.refresh(leave)
+    return leave.id
+
+
+@pytest.mark.asyncio
+async def test_approve_leave_confirmation_then_execute(db, test_engine):
+    leave_id = await _seed_pending_leave(db, test_engine)
+    executor = _executor()
+    intent = Intent(intent=IntentType.approve_leave, params={
+        "leave": str(leave_id), "result": "通过",
+    }, need_confirm=True)
+    msgs = await executor.execute(intent, "T10001", "teacher", "s1", db)
+    assert msgs[0].kind == "confirmation"
+    token = msgs[0].confirm_token
+    results = await executor.execute_confirm(executor.confirmations.consume("T10001", token), db)
+    assert results[0].kind == "card"
+    assert "已通过" in results[0].content
+    leaves = (await db.execute(select(LeaveApplication))).scalars().all()
+    assert leaves[0].status == "已通过"
+
+
+@pytest.mark.asyncio
+async def test_approve_leave_reject(db, test_engine):
+    leave_id = await _seed_pending_leave(db, test_engine)
+    executor = _executor()
+    intent = Intent(intent=IntentType.approve_leave, params={
+        "leave": str(leave_id), "result": "驳回", "comment": "材料不全",
+    }, need_confirm=True)
+    msgs = await executor.execute(intent, "T10001", "teacher", "s1", db)
+    token = msgs[0].confirm_token
+    await executor.execute_confirm(executor.confirmations.consume("T10001", token), db)
+    leaves = (await db.execute(select(LeaveApplication))).scalars().all()
+    assert leaves[0].status == "已驳回"
+
+
+@pytest.mark.asyncio
+async def test_approve_leave_student_forbidden(db, test_engine):
+    await _seed_pending_leave(db, test_engine)
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.approve_leave, params={"leave": "1", "result": "通过"}),
+        "S2024001", "student", "s1", db,
+    )
+    assert msgs[0].kind == "error"

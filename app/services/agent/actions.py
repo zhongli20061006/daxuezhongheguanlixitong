@@ -33,6 +33,7 @@ NOT_FOR_ADMIN = frozenset({
     IntentType.reserve_classroom, IntentType.repair_submit, IntentType.leave_apply,
     IntentType.query_scores, IntentType.query_exams,
 })
+NOT_FOR_STUDENT = frozenset({IntentType.approve_leave})
 
 REPAIR_TYPES = frozenset(t.value for t in RepairType)
 
@@ -43,6 +44,8 @@ def _allowed(intent: IntentType, role: str) -> bool:
     if intent in STUDENT_ONLY and role != "student":
         return False
     if intent in NOT_FOR_ADMIN and role == "admin":
+        return False
+    if intent in NOT_FOR_STUDENT and role == "student":
         return False
     return True
 
@@ -306,6 +309,60 @@ class ActionExecutor:
             data=info, confirm_token=token,
         )]
 
+    async def _handle_approve_leave(self, intent, user_id, role, session_id, db):
+        from app.services.agent import AgentMessage
+
+        leave = await self._resolve_pending_leave(intent.params, user_id, role, db)
+        if leave is None:
+            return [AgentMessage(kind="error", title="业务失败",
+                                 content="没找到可审批的请假，请提供请假编号或学生姓名/学号")]
+        result = (intent.params.get("result") or "").strip()
+        if result not in ("通过", "驳回"):
+            return [AgentMessage(kind="error", title="业务失败", content="请说明审批结果：通过 或 驳回")]
+        info = {
+            "leave_id": leave.id, "student": leave.student_id,
+            "days": leave.total_days, "reason": leave.reason, "result": result,
+        }
+        token = self.confirmations.create(user_id, {
+            "action": "approve_leave", "leave_id": leave.id, "result": result,
+            "comment": (intent.params.get("comment") or "").strip(),
+            "role": role, "user_id": user_id, "session_id": session_id,
+        })
+        return [AgentMessage(
+            kind="confirmation", title="确认审批",
+            content=f"对 {leave.student_id} 的请假（{leave.total_days}天）执行「{result}」",
+            data=info, confirm_token=token,
+        )]
+
+    async def _resolve_pending_leave(self, params, user_id, role, db):
+        """在待审批列表中按请假编号或学生姓名/学号定位记录。"""
+        from app.models import LeaveApplication, Student, StudentClass
+        from app.services.leave_service import leave_service
+
+        ref = (params.get("leave") or "").strip()
+        if not ref:
+            return None
+        approver_role = "admin" if role == "admin" else "advisor"
+        class_id = None
+        if role == "teacher":
+            t = (await db.execute(
+                select(Teacher).where(Teacher.job_number == user_id)
+            )).scalar_one_or_none()
+            if not t:
+                return None
+            classes = (await db.execute(
+                select(StudentClass).where(StudentClass.advisor_id == t.id)
+            )).scalars().all()
+            class_id = classes[0].id if classes else -1
+        rows = await leave_service.get_pending_approvals(db, approver_role, class_id)
+        if ref.isdigit():
+            target = int(ref)
+            return next((l for l, _ in rows if l.id == target), None)
+        for l, s in rows:
+            if ref in (l.student_id, s.name):
+                return l
+        return None
+
     async def execute_confirm(self, payload: dict, db: AsyncSession) -> list:
         from app.services.agent import AgentMessage
 
@@ -441,6 +498,35 @@ class ActionExecutor:
                 content=f"已预约 {info['classroom']}：第{info['week']}周 "
                         f"{WEEKDAY_CN[info['day_of_week'] - 1]} {info['period']}节",
                 data=info,
+            )]
+        if action == "approve_leave":
+            from app.services.leave_service import leave_service
+
+            approver_role = "admin" if payload.get("role") == "admin" else "advisor"
+            is_college_admin = False
+            if payload.get("role") == "teacher":
+                t = (await db.execute(
+                    select(Teacher).where(Teacher.job_number == user_id)
+                )).scalar_one_or_none()
+                is_college_admin = bool(t and t.is_college_admin)
+            try:
+                leave = await leave_service.approve(
+                    db, int(payload["leave_id"]), user_id, approver_role,
+                    payload["result"], payload.get("comment"),
+                    is_college_admin=is_college_admin,
+                )
+            except ValueError as exc:
+                await db.rollback()
+                return [AgentMessage(kind="error", title="业务失败", content=str(exc))]
+            except Exception:
+                await db.rollback()
+                logger.exception("agent approve leave failed")
+                return [AgentMessage(kind="error", title="系统异常", content="审批失败，请稍后重试")]
+            self.sessions.add_fact(user_id, session_id, f"已审批请假 #{leave.id}：{payload['result']}")
+            return [AgentMessage(
+                kind="card", title="审批完成",
+                content=f"请假 #{leave.id} 已{payload['result']}，当前状态：{leave.status}",
+                data={"leave_id": leave.id, "status": leave.status},
             )]
         return [AgentMessage(kind="error", content="未知的确认动作")]
 
