@@ -344,3 +344,53 @@ async def test_leave_multi_turn_fills_params_then_text_confirm(client, db, test_
     leaves = (await db.execute(select(LeaveApplication))).scalars().all()
     assert len(leaves) == 1
     assert leaves[0].total_days == 2
+
+
+@pytest.mark.asyncio
+async def test_leave_from_today_to_day_after_tomorrow(client, db, test_engine, auth_override, fake_llm):
+    """复现用户场景：'从今天到后天，帮我直接提交申请' 应走到确认卡片，而不是报日期错误。"""
+    await _seed_agent_data(db, test_engine)
+    resp = await client.post("/agent/chat", json={
+        "message": "我要请假，原因是我感冒了，从今天到后天，帮我直接提交申请",
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "confirmation" in [m["kind"] for m in data["messages"]]
+    sid = data["session_id"]
+
+    resp2 = await client.post("/agent/chat", json={"session_id": sid, "message": "下一步"})
+    assert resp2.status_code == 200
+    assert resp2.json()["source"] == "confirm"
+    leaves = (await db.execute(select(LeaveApplication))).scalars().all()
+    assert len(leaves) == 1
+    assert leaves[0].total_days == 3
+
+
+@pytest.mark.asyncio
+async def test_leave_short_date_fragment_continues_pending(client, db, test_engine, auth_override, fake_llm):
+    """复现用户场景：'8.4号到8.5号' 这类短日期续句应合并进待办并出确认卡片，而不是掉进闲聊。"""
+    await _seed_agent_data(db, test_engine)
+    resp = await client.post("/agent/chat", json={"message": "请假：帮我直接提交"})
+    sid = resp.json()["session_id"]
+
+    d1 = date.today() + timedelta(days=1)
+    d2 = date.today() + timedelta(days=2)
+    resp2 = await client.post("/agent/chat", json={
+        "session_id": sid, "message": f"{d1.month}.{d1.day}号到{d2.month}.{d2.day}号，感冒",
+    })
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["source"] == "pending"
+    assert "confirmation" in [m["kind"] for m in data2["messages"]]
+
+    resp3 = await client.post("/agent/chat", json={"session_id": sid, "message": "确认"})
+    assert resp3.status_code == 200
+    assert resp3.json()["messages"][0]["kind"] == "card"
+    leaves = (await db.execute(select(LeaveApplication))).scalars().all()
+    assert len(leaves) == 1
+    assert leaves[0].total_days == 2
+
+    # 待办已清空：纯闲聊问题不会被 pending 劫持
+    resp4 = await client.post("/agent/chat", json={"session_id": sid, "message": "你是谁"})
+    assert resp4.status_code == 200
+    assert resp4.json()["source"] != "pending"

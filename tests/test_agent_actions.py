@@ -253,6 +253,29 @@ async def test_leave_apply_relative_date(db, test_engine):
     assert msgs[0].data["total_days"] == 2
 
 
+def test_norm_date_short_format():
+    expected = date(date.today().year, 8, 4)
+    assert ActionExecutor._norm_date("8.4号") == expected
+    assert ActionExecutor._norm_date("8月4日") == expected
+
+
+@pytest.mark.asyncio
+async def test_leave_apply_short_dates(db, test_engine):
+    await _seed(db, test_engine)
+    executor = _executor()
+    d1 = date.today() + timedelta(days=1)
+    d2 = date.today() + timedelta(days=2)
+    msgs = await executor.execute(
+        Intent(intent=IntentType.leave_apply, params={
+            "start_date": f"{d1.month}.{d1.day}号", "end_date": f"{d2.month}.{d2.day}号",
+            "reason": "感冒",
+        }),
+        "S2024001", "student", "sess1", db,
+    )
+    assert msgs[0].kind == "confirmation"
+    assert msgs[0].data["total_days"] == 2
+
+
 @pytest.mark.asyncio
 async def test_leave_apply_student_only(db, test_engine):
     await _seed(db, test_engine)

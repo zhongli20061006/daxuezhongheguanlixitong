@@ -445,6 +445,12 @@ class ActionExecutor:
                 return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
             except ValueError:
                 return None
+        m = re.match(r"(\d{1,2})[./-](\d{1,2})号?$", key) or re.match(r"(\d{1,2})月(\d{1,2})[日号]?$", key)
+        if m:
+            try:
+                return date(date.today().year, int(m.group(1)), int(m.group(2)))
+            except ValueError:
+                return None
         return None
 
     def _precheck_leave(self, params: dict) -> tuple[bool, str, dict]:

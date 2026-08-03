@@ -5,7 +5,7 @@ import pytest
 
 from app.services.agent.intent import (
     IntentResolver, IntentType, extract_params_for, is_cancel_message, is_confirm_message,
-    match_rules,
+    is_param_fragment, match_rules,
 )
 from app.services.agent.llm import OllamaUnavailable
 
@@ -118,6 +118,30 @@ def test_extract_params_leave_relative_range_and_reason():
     assert params["reason"] == "感冒"
 
 
+def test_extract_params_leave_short_dates():
+    """8.3号-8.5号这类短日期应解析为当前年份的实际日期。"""
+    d1 = date.today() + timedelta(days=1)
+    d2 = date.today() + timedelta(days=2)
+    params = extract_params_for(IntentType.leave_apply, f"{d1.month}.{d1.day}号到{d2.month}.{d2.day}号")
+    assert params["start_date"] == d1.isoformat()
+    assert params["end_date"] == d2.isoformat()
+
+
+def test_extract_params_leave_mixed_relative_and_short():
+    d2 = date.today() + timedelta(days=2)
+    params = extract_params_for(IntentType.leave_apply, f"明天到{d2.month}.{d2.day}号")
+    assert params["start_date"] == (date.today() + timedelta(days=1)).isoformat()
+    assert params["end_date"] == d2.isoformat()
+
+
+def test_is_param_fragment():
+    assert is_param_fragment("8.4号到8.5号")
+    assert is_param_fragment("明天")
+    assert is_param_fragment("因为感冒")
+    assert not is_param_fragment("你是谁")
+    assert not is_param_fragment("帮我查课表")
+
+
 @pytest.mark.asyncio
 async def test_resolver_llm_first():
     llm = FakeLLM(result={"intents": [{"intent": "study_plan", "params": {}, "confidence": 0.9}]})
@@ -175,3 +199,18 @@ async def test_resolver_filters_invalid_navigate():
     intents, source = await resolver.resolve("下一步")
     assert source == "fallback"
     assert intents[0].intent == IntentType.chat
+
+
+@pytest.mark.asyncio
+async def test_resolver_rules_params_override_llm_hallucination():
+    """LLM 幻觉出旧日期时，规则抽取的实际日期应覆盖它。"""
+    llm = FakeLLM(result={"intents": [
+        {"intent": "leave_apply", "params": {"start_date": "2023-07-01"}, "confidence": 0.9},
+    ]})
+    resolver = IntentResolver(llm)
+    intents, source = await resolver.resolve("我要请假明天因为感冒")
+    assert source == "llm"
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    assert intents[0].params["start_date"] == tomorrow
+    assert intents[0].params["end_date"] == tomorrow
+    assert intents[0].params["reason"] == "感冒"

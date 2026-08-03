@@ -61,6 +61,8 @@ RULE_TABLE: list[tuple[IntentType, list[str], str | None]] = [
 ]
 
 _DATE_RE = re.compile(r"(20\d{2})[-/年](\d{1,2})[-/月](\d{1,2})日?")
+_SHORT_DATE_RE = re.compile(r"(\d{1,2})[./-](\d{1,2})号?")
+_MONTH_DAY_RE = re.compile(r"(\d{1,2})月(\d{1,2})[日号]?")
 
 _REPAIR_TYPE_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
     ("水电设备", ("水电", "水龙头", "漏水", "断电", "灯", "插座", "水管")),
@@ -86,6 +88,14 @@ def _norm_ymd(year: str, month: str, day: str) -> str:
     return f"{int(year)}-{int(month):02d}-{int(day):02d}"
 
 
+def _norm_short_ymd(month: str, day: str) -> str:
+    """短日期（如 8.3号 / 8月4日）补全为当前年份的 YYYY-MM-DD。"""
+    try:
+        return date(date.today().year, int(month), int(day)).isoformat()
+    except ValueError:
+        return ""
+
+
 def _extract_leave_params(text: str) -> dict[str, str]:
     """规则兜底：抽取请假日期与原因（尽力而为，缺失由动作层提示补充）。"""
     params: dict[str, str] = {}
@@ -94,11 +104,23 @@ def _extract_leave_params(text: str) -> dict[str, str]:
         params["start_date"] = _norm_ymd(*dates[0])
         params["end_date"] = _norm_ymd(*dates[-1])
     else:
-        rel = re.findall(r"(今天|明天|后天|大后天)", text)
-        if rel:
-            params["start_date"] = (date.today() + timedelta(days=_RELATIVE_DAY[rel[0]])).isoformat()
-            params["end_date"] = (date.today() + timedelta(days=_RELATIVE_DAY[rel[-1]])).isoformat()
-    m = re.search(r"(?:因为|原因|理由)[:：]?\s*([^，。,.！!？?\s]{2,30})", text)
+        candidates: list[tuple[int, str]] = []
+        for m in re.finditer(r"(今天|明天|后天|大后天)", text):
+            day = date.today() + timedelta(days=_RELATIVE_DAY[m.group(1)])
+            candidates.append((m.start(), day.isoformat()))
+        for m in re.finditer(_SHORT_DATE_RE, text):
+            value = _norm_short_ymd(*m.groups())
+            if value:
+                candidates.append((m.start(), value))
+        for m in re.finditer(_MONTH_DAY_RE, text):
+            value = _norm_short_ymd(*m.groups())
+            if value:
+                candidates.append((m.start(), value))
+        if candidates:
+            candidates.sort()
+            params["start_date"] = candidates[0][1]
+            params["end_date"] = candidates[-1][1]
+    m = re.search(r"(?:因为|原因|理由)[:：]?\s*(?:是)?\s*([^，。,.！!？?\s]{2,30})", text)
     if m:
         params["reason"] = m.group(1).strip()
     else:
@@ -131,6 +153,14 @@ def is_cancel_message(text: str) -> bool:
     """短句包含取消语义（如"取消""不用了""算了"）时视为放弃待确认操作。"""
     s = text.strip().strip("，,。.!！?？~～ \t")
     return 1 <= len(s) <= 12 and any(w in s for w in _CANCEL_WORDS)
+
+
+def is_param_fragment(text: str) -> bool:
+    """短句里含日期/原因等信息片段（如"8.4号到8.5号"），视为补全待办操作的续句。"""
+    s = text.strip()
+    if not s or len(s) > 30:
+        return False
+    return bool(re.search(r"\d|号|日|月|周|今天|明天|后天|因为|原因|理由", s))
 
 
 def _intent_usable(intent: "Intent") -> bool:
@@ -257,6 +287,12 @@ class IntentResolver:
                         if rule:
                             self._put(text, [rule], now)
                             return [rule], "rules"
+                    # 写操作参数以规则抽取为准，避免模型幻觉日期/地点
+                    for intent in intents:
+                        if intent.intent in WRITE_INTENTS:
+                            for key, value in extract_params_for(intent.intent, text).items():
+                                if value:
+                                    intent.params[key] = value
                     self._put(text, intents, now)
                     return intents, "llm"
             except (OllamaUnavailable, OllamaTimeout, OllamaBusy):

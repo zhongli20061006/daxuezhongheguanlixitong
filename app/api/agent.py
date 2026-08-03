@@ -13,7 +13,7 @@ from app.services.agent.actions import ActionExecutor
 from app.services.agent.confirmations import ConfirmationStore
 from app.services.agent.intent import (
     Intent, IntentResolver, IntentType, extract_params_for, is_cancel_message,
-    is_confirm_message, match_rules,
+    is_confirm_message, is_param_fragment, match_rules,
 )
 from app.services.agent.llm import OllamaBusy, OllamaClient, OllamaTimeout, OllamaUnavailable
 from app.services.agent.session import SessionStore
@@ -100,7 +100,7 @@ async def agent_chat(
         rule = match_rules(req.message)
         if rule is None or rule.intent in (IntentType.chat, IntentType.navigate):
             new_params = extract_params_for(IntentType(pending["intent"]), req.message)
-            if new_params:
+            if new_params or is_param_fragment(req.message):
                 merged = {**pending["params"], **{k: v for k, v in new_params.items() if v}}
                 intent = Intent(
                     intent=IntentType(pending["intent"]), params=merged,
