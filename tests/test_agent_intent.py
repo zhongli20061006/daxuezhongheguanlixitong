@@ -149,6 +149,36 @@ def test_unified_prompts_contain_identity_and_rules():
     assert "query_notifications" in INTENT_SYSTEM_PROMPT
 
 
+def test_rules_query_scores():
+    intent = match_rules("查一下我的成绩")
+    assert intent.intent == IntentType.query_scores
+    assert intent.need_confirm is False
+
+
+def test_rules_query_notifications():
+    intent = match_rules("查看我的通知")
+    assert intent.intent == IntentType.query_notifications
+
+
+def test_rules_query_exams():
+    intent = match_rules("我的考试安排")
+    assert intent.intent == IntentType.query_exams
+
+
+def test_rules_approve_leave_extracts_params():
+    intent = match_rules("审批3号请假，通过")
+    assert intent.intent == IntentType.approve_leave
+    assert intent.need_confirm is True
+    assert intent.params["leave"] == "3"
+    assert intent.params["result"] == "通过"
+
+
+def test_rules_approve_reject():
+    intent = match_rules("驳回1号请假")
+    assert intent.intent == IntentType.approve_leave
+    assert intent.params["result"] == "驳回"
+
+
 def test_is_param_fragment():
     assert is_param_fragment("8.4号到8.5号")
     assert is_param_fragment("明天")

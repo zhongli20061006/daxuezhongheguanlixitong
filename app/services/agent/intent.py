@@ -7,6 +7,7 @@ from enum import Enum
 from pydantic import BaseModel, Field, ValidationError
 
 from app.services.agent.llm import OllamaBusy, OllamaClient, OllamaTimeout, OllamaUnavailable
+from app.services.agent.prompts import INTENT_SYSTEM_PROMPT
 
 
 class IntentType(str, Enum):
@@ -19,12 +20,16 @@ class IntentType(str, Enum):
     reserve_classroom = "reserve_classroom"
     repair_submit = "repair_submit"
     leave_apply = "leave_apply"
+    approve_leave = "approve_leave"
+    query_scores = "query_scores"
+    query_notifications = "query_notifications"
+    query_exams = "query_exams"
     chat = "chat"
 
 
 WRITE_INTENTS = frozenset({
     IntentType.enroll, IntentType.drop, IntentType.reserve_classroom,
-    IntentType.repair_submit, IntentType.leave_apply,
+    IntentType.repair_submit, IntentType.leave_apply, IntentType.approve_leave,
 })
 
 
@@ -53,10 +58,14 @@ RULE_TABLE: list[tuple[IntentType, list[str], str | None]] = [
     (IntentType.study_plan, ["学习方案", "学习计划", "怎么学", "复习计划"], None),
     (IntentType.query_schedule, ["上什么课", "课程安排", "课表"], None),
     (IntentType.query_classroom, ["空教室", "教室可用", "查教室"], None),
+    (IntentType.query_exams, ["考试", "监考"], None),
+    (IntentType.query_scores, ["成绩", "绩点"], None),
+    (IntentType.query_notifications, ["通知", "未读"], None),
     (IntentType.reserve_classroom, ["预约教室", "借教室", "订教室", "申请教室"], None),
     (IntentType.drop, ["退课", "退选", "不上了"], r"(?:退课|退选)\s*([^\s，。,.！!？?]+)"),
     (IntentType.enroll, ["选课", "选这门", "报名", "选修", "帮我选", "要选"], r"(?:选|报)(?:修|名)?\s*([^\s，。,.！!？?]+)"),
     (IntentType.repair_submit, ["报修", "修一下", "后勤", "东西坏了"], None),
+    (IntentType.approve_leave, ["审批", "批准", "驳回", "同意请假"], None),
     (IntentType.leave_apply, ["请假", "休假申请"], None),
 ]
 
@@ -138,6 +147,8 @@ def extract_params_for(intent_type: "IntentType", text: str) -> dict[str, str]:
         return _extract_repair_params(text)
     if intent_type == IntentType.reserve_classroom:
         return _extract_reserve_params(text)
+    if intent_type == IntentType.approve_leave:
+        return _extract_approve_params(text)
     return {}
 
 
@@ -212,6 +223,25 @@ def _extract_reserve_params(text: str) -> dict[str, str]:
     return params
 
 
+def _extract_approve_params(text: str) -> dict[str, str]:
+    """规则兜底：抽取审批的请假编号/学生、结果与意见。"""
+    params: dict[str, str] = {}
+    if "驳回" in text:
+        params["result"] = "驳回"
+    elif any(k in text for k in ("通过", "同意", "批准")):
+        params["result"] = "通过"
+    m = re.search(r"(?:第)?\s*(\d+)\s*(?:号|条)", text)
+    if m:
+        params["leave"] = m.group(1)
+    m = re.search(r"([\u4e00-\u9fa5]{2,4})(?:同学)?的请假", text)
+    if m:
+        params["student"] = m.group(1)
+    m = re.search(r"(?:意见|备注)[:：]?\s*([^，。,.！!？?\s]{1,30})", text)
+    if m:
+        params["comment"] = m.group(1).strip()
+    return params
+
+
 def match_rules(text: str) -> "Intent | None":
     """导航短语优先（跳转），其次动作规则表，最后裸页面词兜底跳转。"""
     lowered = text.strip()
@@ -229,6 +259,8 @@ def match_rules(text: str) -> "Intent | None":
                     params = _extract_repair_params(lowered)
                 elif intent == IntentType.reserve_classroom:
                     params = _extract_reserve_params(lowered)
+                elif intent == IntentType.approve_leave:
+                    params = _extract_approve_params(lowered)
                 elif pattern:
                     m = re.search(pattern, lowered)
                     if m:
@@ -238,26 +270,6 @@ def match_rules(text: str) -> "Intent | None":
         if page_word in lowered:
             return Intent(intent=IntentType.navigate, params={"page": path}, confidence=0.9, need_confirm=False)
     return None
-
-
-EXTRACT_SYSTEM_PROMPT = (
-    "你是教务智能体的意图识别器。只输出 JSON，不要生成任何文案或申请书。"
-    "把用户指令解析为有序意图列表。可选意图：\n"
-    "- navigate：仅当用户明确要求打开/跳转页面，params.page 必须是已知页面路径（如 /schedule、/selection、/classrooms、/repairs、/leaves）\n"
-    "- query_schedule：查课表；study_plan：学习方案；query_classroom：查空教室\n"
-    "- enroll：选课 params.course；drop：退课 params.course"
-    "（course 保留用户原话里的课程名，可为简称如\"摄影课\"，系统会自动模糊匹配）\n"
-    "- reserve_classroom：预约教室 params.classroom/week/day_of_week/period/reason"
-    "（week 1-52，day_of_week 1-7，period 如\"1-2\"，reason 预约理由）\n"
-    "- repair_submit：报修 params.location/type/description"
-    "（type 只能取：水电设备/电子产品/家具类/教学用具）\n"
-    "- leave_apply：请假 params.start_date/end_date/reason"
-    "（日期必须转成 YYYY-MM-DD 实际日期，\"明天\"就写明天日期；没说结束日期则只给 start_date；reason 请假原因）\n"
-    "- chat：仅当与上述动作无关时才用\n"
-    "规则：用户说\"请假/报修/预约/选课/退课\"等，即使带\"帮我直接提交\"，也必须返回对应写操作意图；"
-    "参数缺失时也要返回该意图（params 可以为空），不要返回 chat，不要代写文案。\n"
-    '输出格式：{"intents":[{"intent":"...","params":{...},"confidence":0.9}]}'
-)
 
 
 class IntentResolver:
@@ -276,7 +288,7 @@ class IntentResolver:
         for _ in range(2):  # JSON 解析失败重试一次
             try:
                 data = await self.llm.extract_json([
-                    {"role": "system", "content": EXTRACT_SYSTEM_PROMPT},
+                    {"role": "system", "content": INTENT_SYSTEM_PROMPT},
                     {"role": "user", "content": text},
                 ])
                 intents = self._parse_llm(data)
