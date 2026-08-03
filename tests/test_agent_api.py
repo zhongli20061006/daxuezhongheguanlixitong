@@ -6,8 +6,9 @@ from sqlalchemy import select
 
 from app.models import (
     ApprovalConfig, ApprovalRecord, Classroom, ClassroomReservation, CourseCapacity,
-    CourseSelection, LeaveApplication, Notification, NotificationUser, Repair, Schedule,
-    Student, StudentClass, Subject, SubjectType, SystemConfig, Teacher,
+    CourseSelection, Exam, ExamArrangement, ExamStudent, LeaveApplication, Notification,
+    NotificationUser, Repair, Schedule, Score, ScoreType, Student, StudentClass,
+    Subject, SubjectType, SystemConfig, Teacher,
 )
 from app.services.agent.actions import _tomorrow_weekday
 from app.services.agent.llm import OllamaUnavailable
@@ -42,6 +43,7 @@ async def _cleanup(test_engine):
         for model in (
             NotificationUser, Notification, ApprovalRecord, LeaveApplication,
             ClassroomReservation, Repair, ApprovalConfig,
+            Score, ExamStudent, ExamArrangement, Exam,
             CourseSelection, CourseCapacity, Schedule, SystemConfig,
             Student, Classroom, Subject, Teacher, StudentClass,
         ):
@@ -394,3 +396,84 @@ async def test_leave_short_date_fragment_continues_pending(client, db, test_engi
     resp4 = await client.post("/agent/chat", json={"session_id": sid, "message": "你是谁"})
     assert resp4.status_code == 200
     assert resp4.json()["source"] != "pending"
+
+
+@pytest.mark.asyncio
+async def test_chat_query_scores(client, db, test_engine, auth_override, fake_llm):
+    await _seed_agent_data(db, test_engine)
+    db.add(Score(
+        student_id="S2024001", schedule_id=1, score=88, gpa=3.7,
+        score_type=ScoreType.daily, attempt=1,
+    ))
+    await db.commit()
+    resp = await client.post("/agent/chat", json={"message": "查一下我的成绩"})
+    assert resp.status_code == 200
+    kinds = [m["kind"] for m in resp.json()["messages"]]
+    assert "card" in kinds
+
+
+@pytest.mark.asyncio
+async def test_chat_query_notifications(client, db, test_engine, auth_override, fake_llm):
+    await _seed_agent_data(db, test_engine)
+    n = Notification(title="考试提醒", content="周日下午考试", event_type="exam")
+    db.add(n)
+    await db.flush()
+    db.add(NotificationUser(notification_id=n.id, recipient_id="S2024001", is_read=False))
+    await db.commit()
+    resp = await client.post("/agent/chat", json={"message": "查看我的通知"})
+    assert resp.status_code == 200
+    assert any(m["kind"] == "card" for m in resp.json()["messages"])
+
+
+@pytest.mark.asyncio
+async def test_chat_query_exams(client, db, test_engine, auth_override, fake_llm):
+    await _seed_agent_data(db, test_engine)
+    db.add(Exam(id=1, semester="2024-2025-1", subject_id=2, schedule_id=1,
+                exam_type="统一考试", duration_minutes=120, status="已发布"))
+    await db.flush()
+    db.add(ExamArrangement(exam_id=1, classroom_id=1, date=date(2026, 8, 10),
+                           start_time="09:00", end_time="11:00", invigilator_id="T10001"))
+    await db.flush()
+    db.add(ExamStudent(exam_id=1, student_id="S2024001", seat_no=3))
+    await db.commit()
+    resp = await client.post("/agent/chat", json={"message": "我的考试安排"})
+    assert resp.status_code == 200
+    assert any(m["kind"] == "card" for m in resp.json()["messages"])
+
+
+@pytest.mark.asyncio
+async def test_chat_approve_leave_teacher_flow(client, db, test_engine, fake_llm, monkeypatch):
+    """教师审批：确认卡片 → 文本确认 → 状态流转。"""
+    from app.deps import get_current_user
+    from app.main import app
+
+    await _seed_agent_data(db, test_engine)
+    leave = LeaveApplication(
+        student_id="S2024001",
+        start_date=date.today() + timedelta(days=1),
+        end_date=date.today() + timedelta(days=1),
+        total_days=1, reason="感冒", status="审批中(辅导员)",
+    )
+    db.add(leave)
+    await db.commit()
+    await db.refresh(leave)
+
+    app.dependency_overrides[get_current_user] = lambda: {
+        "username": "T10001", "role": "teacher", "role_id": "T10001",
+    }
+    try:
+        resp = await client.post("/agent/chat", json={
+            "message": f"审批{leave.id}号请假，通过",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "confirmation" in [m["kind"] for m in data["messages"]]
+        sid = data["session_id"]
+
+        resp2 = await client.post("/agent/chat", json={"session_id": sid, "message": "确认"})
+        assert resp2.status_code == 200
+        assert resp2.json()["source"] == "confirm"
+        leaves = (await db.execute(select(LeaveApplication))).scalars().all()
+        assert leaves[0].status == "已通过"
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)

@@ -47,6 +47,7 @@ async def _cleanup(test_engine):
         for model in (
             NotificationUser, Notification, ApprovalRecord, LeaveApplication,
             ClassroomReservation, Repair, ApprovalConfig,
+            Score, ExamStudent, ExamArrangement, Exam,
             CourseSelection, CourseCapacity, Schedule, SystemConfig,
             Student, Classroom, Subject, Teacher, StudentClass,
         ):
