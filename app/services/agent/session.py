@@ -23,6 +23,7 @@ class SessionStore:
             "updated_at": now,
             "messages": [],
             "facts": [],
+            "pending_write": None,
         }
         self._sessions[session["session_id"]] = session
         self._evict(user_id)
@@ -71,6 +72,32 @@ class SessionStore:
             return
         if fact not in session["facts"]:
             session["facts"].append(fact)
+
+    def set_pending_write(self, user_id: str, session_id: str, intent: str, params: dict[str, Any]) -> None:
+        """记录一次因参数不全而未完成的写操作，等待用户下一条消息补全。"""
+        session = self.get(user_id, session_id)
+        if session:
+            session["pending_write"] = {
+                "intent": intent, "params": dict(params), "ts": self._now(),
+            }
+
+    def get_pending_write(self, user_id: str, session_id: str) -> dict[str, Any] | None:
+        session = self.get(user_id, session_id)
+        if not session:
+            return None
+        pending = session.get("pending_write")
+        if not pending:
+            return None
+        # 5 分钟内有效，避免隔很久的旧参数串台
+        if self._now() - pending["ts"] > 300:
+            session.pop("pending_write", None)
+            return None
+        return pending
+
+    def clear_pending_write(self, user_id: str, session_id: str) -> None:
+        session = self.get(user_id, session_id)
+        if session:
+            session.pop("pending_write", None)
 
     def build_context(self, user_id: str, session_id: str, budget_tokens: int = 8000) -> list[dict[str, str]]:
         """按优先级组装：事实表优先，历史从最新往前装，超预算丢弃最旧。"""

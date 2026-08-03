@@ -312,3 +312,35 @@ async def test_chat_text_cancel_discards_pending(client, db, test_engine, auth_o
 
     resp3 = await client.post("/agent/chat", json={"message": "确认"})
     assert resp3.json()["messages"][0]["content"] == "当前没有待确认的操作，直接告诉我你想做什么就行"
+
+
+@pytest.mark.asyncio
+async def test_leave_multi_turn_fills_params_then_text_confirm(client, db, test_engine, auth_override, fake_llm):
+    """复现用户场景：'请假：帮我直接提交' → 补日期原因 → 回复'下一步'执行，多轮链路自主走通。"""
+    await _seed_agent_data(db, test_engine)
+
+    resp = await client.post("/agent/chat", json={"message": "请假：帮我直接提交"})
+    assert resp.status_code == 200
+    # 第一轮：识别为请假但缺日期 → 提示补信息（而不是代写文案）
+    first_data = resp.json()
+    first = first_data["messages"]
+    sid = first_data["session_id"]
+    assert any(m["kind"] == "error" and "日期" in m["content"] for m in first)
+
+    # 第二轮：补全日期和原因，自动合并续跑
+    resp2 = await client.post("/agent/chat", json={"session_id": sid, "message": "明天到后天，感冒"})
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["source"] == "pending"
+    assert "confirmation" in [m["kind"] for m in data2["messages"]]
+
+    # 第三轮：回复"下一步"执行
+    resp3 = await client.post("/agent/chat", json={"session_id": sid, "message": "下一步"})
+    assert resp3.status_code == 200
+    data3 = resp3.json()
+    assert data3["source"] == "confirm"
+    assert data3["messages"][0]["kind"] == "card"
+    assert "请假" in data3["messages"][0]["title"]
+    leaves = (await db.execute(select(LeaveApplication))).scalars().all()
+    assert len(leaves) == 1
+    assert leaves[0].total_days == 2

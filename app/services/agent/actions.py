@@ -13,7 +13,7 @@ from app.models import (
     RepairType, Schedule, Student, Subject, SystemConfig, Teacher,
 )
 from app.services.agent.confirmations import ConfirmationStore
-from app.services.agent.intent import Intent, IntentType
+from app.services.agent.intent import Intent, IntentType, KNOWN_PAGES
 from app.services.agent.llm import OllamaClient
 from app.services.agent.session import SessionStore
 from app.utils.period_parser import is_period_overlap
@@ -32,12 +32,6 @@ NOT_FOR_ADMIN = frozenset({IntentType.reserve_classroom, IntentType.repair_submi
 REPAIR_TYPES = frozenset(t.value for t in RepairType)
 
 _RELATIVE_DAY = {"今天": 0, "明天": 1, "后天": 2, "大后天": 3}
-
-KNOWN_PAGES = frozenset({
-    "/", "/dashboard", "/schedule", "/selection", "/scores", "/scores/input",
-    "/classrooms", "/repairs", "/repairs/manage", "/leaves", "/plan",
-    "/my-exams", "/my-invigilations", "/advisor", "/notifications", "/profile", "/admin",
-})
 
 
 def _allowed(intent: IntentType, role: str) -> bool:
@@ -180,7 +174,9 @@ class ActionExecutor:
 
         ok, reason, info = await self._precheck_reserve(intent.params, db)
         if not ok:
+            self.sessions.set_pending_write(user_id, session_id, intent.intent.value, intent.params)
             return [AgentMessage(kind="error", title="业务失败", content=reason, data=info)]
+        self.sessions.clear_pending_write(user_id, session_id)
         token = self.confirmations.create(user_id, {
             "action": "reserve_classroom", "classroom_id": info["classroom_id"],
             "week": info["week"], "day_of_week": info["day_of_week"], "period": info["period"],
@@ -197,7 +193,9 @@ class ActionExecutor:
 
         ok, reason, info = self._precheck_repair(intent.params)
         if not ok:
+            self.sessions.set_pending_write(user_id, session_id, intent.intent.value, intent.params)
             return [AgentMessage(kind="error", title="业务失败", content=reason, data=info)]
+        self.sessions.clear_pending_write(user_id, session_id)
         token = self.confirmations.create(user_id, {
             "action": "repair_submit", "location": info["location"], "type": info["type"],
             "description": info["description"], "role": role, "user_id": user_id, "session_id": session_id,
@@ -213,7 +211,9 @@ class ActionExecutor:
 
         ok, reason, info = self._precheck_leave(intent.params)
         if not ok:
+            self.sessions.set_pending_write(user_id, session_id, intent.intent.value, intent.params)
             return [AgentMessage(kind="error", title="业务失败", content=reason, data=info)]
+        self.sessions.clear_pending_write(user_id, session_id)
         token = self.confirmations.create(user_id, {
             "action": "leave_apply", "start_date": info["start_date"], "end_date": info["end_date"],
             "reason": info["reason"], "user_id": user_id, "session_id": session_id,
@@ -232,6 +232,7 @@ class ActionExecutor:
         action = payload.get("action")
         user_id = payload["user_id"]
         session_id = payload.get("session_id", "")
+        self.sessions.clear_pending_write(user_id, session_id)
         if action == "enroll":
             schedule_id = int(payload["schedule_id"])
             ok, reason, info = await self._precheck_enroll(user_id, schedule_id, db)

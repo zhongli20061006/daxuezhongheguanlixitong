@@ -4,7 +4,8 @@ from datetime import date, timedelta
 import pytest
 
 from app.services.agent.intent import (
-    IntentResolver, IntentType, is_cancel_message, is_confirm_message, match_rules,
+    IntentResolver, IntentType, extract_params_for, is_cancel_message, is_confirm_message,
+    match_rules,
 )
 from app.services.agent.llm import OllamaUnavailable
 
@@ -92,9 +93,12 @@ def test_rules_leave_apply_relative_date():
 
 
 def test_confirm_message_detection():
-    for msg in ("确认", "好的", "嗯嗯", "没问题", "同意", "就这么办", "可以"):
+    for msg in (
+        "确认", "好的", "嗯嗯", "没问题", "同意", "就这么办", "可以",
+        "下一步", "继续", "继续吧", "直接提交", "帮我提交", "帮我直接提交", "提交吧",
+    ):
         assert is_confirm_message(msg), msg
-    for msg in ("帮我查课表", "提交请假信息", "你好", "明天上什么课"):
+    for msg in ("帮我查课表", "提交请假信息", "你好", "明天上什么课", "请假：帮我直接提交"):
         assert not is_confirm_message(msg), msg
 
 
@@ -103,6 +107,15 @@ def test_cancel_message_detection():
     assert is_cancel_message("不用了")
     assert is_cancel_message("算了")
     assert not is_cancel_message("明天上什么课")
+
+
+def test_extract_params_leave_relative_range_and_reason():
+    params = extract_params_for(IntentType.leave_apply, "明天到后天，感冒")
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    day_after = (date.today() + timedelta(days=2)).isoformat()
+    assert params["start_date"] == tomorrow
+    assert params["end_date"] == day_after
+    assert params["reason"] == "感冒"
 
 
 @pytest.mark.asyncio
@@ -139,3 +152,26 @@ async def test_resolver_cache():
     await resolver.resolve("你好呀")
     await resolver.resolve("你好呀")
     assert llm.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_resolver_rules_beat_llm_chat_for_actions():
+    """LLM 把动作请求误判成闲聊时，规则命中则优先规则，避免代写文案。"""
+    llm = FakeLLM(result={"intents": [{"intent": "chat", "params": {}, "confidence": 0.9}]})
+    resolver = IntentResolver(llm)
+    intents, source = await resolver.resolve("我要请假明天因为感冒")
+    assert source == "rules"
+    assert intents[0].intent == IntentType.leave_apply
+    assert intents[0].params["start_date"] == (date.today() + timedelta(days=1)).isoformat()
+
+
+@pytest.mark.asyncio
+async def test_resolver_filters_invalid_navigate():
+    """LLM 返回 navigate next 这类非法跳转时被过滤，回退到规则/闲聊。"""
+    llm = FakeLLM(result={"intents": [
+        {"intent": "navigate", "params": {"page": "next"}, "confidence": 0.9},
+    ]})
+    resolver = IntentResolver(llm)
+    intents, source = await resolver.resolve("下一步")
+    assert source == "fallback"
+    assert intents[0].intent == IntentType.chat

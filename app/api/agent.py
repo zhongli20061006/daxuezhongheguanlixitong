@@ -11,7 +11,10 @@ from app.deps import get_current_user
 from app.services.agent import AgentMessage
 from app.services.agent.actions import ActionExecutor
 from app.services.agent.confirmations import ConfirmationStore
-from app.services.agent.intent import IntentResolver, is_cancel_message, is_confirm_message
+from app.services.agent.intent import (
+    Intent, IntentResolver, IntentType, extract_params_for, is_cancel_message,
+    is_confirm_message, match_rules,
+)
 from app.services.agent.llm import OllamaBusy, OllamaClient, OllamaTimeout, OllamaUnavailable
 from app.services.agent.session import SessionStore
 
@@ -81,13 +84,51 @@ async def agent_chat(
         session_store.add_message(user_id, session_id, "assistant", hint.content, kind=hint.kind)
         return {"session_id": session_id, "messages": [hint], "source": "none"}
     if is_cancel_message(req.message):
-        cancelled = confirmation_store.discard_latest(user_id)
+        cancelled = (
+            confirmation_store.discard_latest(user_id)
+            or session_store.get_pending_write(user_id, session_id) is not None
+        )
+        session_store.clear_pending_write(user_id, session_id)
         hint = AgentMessage(
             kind="text",
             content="已取消待确认的操作" if cancelled else "当前没有待取消的操作",
         )
         session_store.add_message(user_id, session_id, "assistant", hint.content, kind=hint.kind)
         return {"session_id": session_id, "messages": [hint], "source": "none"}
+    pending = session_store.get_pending_write(user_id, session_id)
+    if pending:
+        rule = match_rules(req.message)
+        if rule is None or rule.intent in (IntentType.chat, IntentType.navigate):
+            new_params = extract_params_for(IntentType(pending["intent"]), req.message)
+            if new_params:
+                merged = {**pending["params"], **{k: v for k, v in new_params.items() if v}}
+                intent = Intent(
+                    intent=IntentType(pending["intent"]), params=merged,
+                    need_confirm=True, confidence=0.9,
+                )
+                try:
+                    outcome = await executor.execute(
+                        intent, user_id, role, session_id, db, raw_text=req.message
+                    )
+                except (OllamaBusy, OllamaUnavailable) as exc:
+                    outcome = [AgentMessage(kind="error", content=str(exc))]
+                except OllamaTimeout:
+                    outcome = [AgentMessage(kind="error", content="模型响应超时，请稍后再试")]
+                except Exception:
+                    logger.exception("agent pending continuation failed")
+                    outcome = [AgentMessage(kind="error", content="系统异常，请稍后重试")]
+                if not outcome:
+                    outcome = [AgentMessage(kind="error", content="操作未能继续，请重新描述需求")]
+                ok = not any(m.kind == "error" for m in outcome)
+                outcome.append(AgentMessage(
+                    kind="summary",
+                    content=f"共 1 个指令：成功 {1 if ok else 0}、业务失败 {0 if not ok else 1}、跳过 0、系统中断 0",
+                ))
+                for m in outcome:
+                    session_store.add_message(
+                        user_id, session_id, "assistant", m.content or m.title, kind=m.kind
+                    )
+                return {"session_id": session_id, "messages": outcome, "source": "pending"}
     try:
         intents, source = await resolver.resolve(req.message)
     except Exception:

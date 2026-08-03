@@ -41,6 +41,12 @@ PAGE_KEYWORDS = {
     "培养方案": "/plan", "考试": "/my-exams", "首页": "/dashboard", "管理后台": "/admin",
 }
 
+KNOWN_PAGES = frozenset({
+    "/", "/dashboard", "/schedule", "/selection", "/scores", "/scores/input",
+    "/classrooms", "/repairs", "/repairs/manage", "/leaves", "/plan",
+    "/my-exams", "/my-invigilations", "/advisor", "/notifications", "/profile", "/admin",
+})
+
 NAV_PHRASES = ("打开", "前往", "进入", "跳转", "页面", "去")
 
 RULE_TABLE: list[tuple[IntentType, list[str], str | None]] = [
@@ -69,6 +75,11 @@ _RELATIVE_DAY = {"今天": 0, "明天": 1, "后天": 2, "大后天": 3}
 
 _CONFIRM_CHARS = frozenset("嗯好可以确认确定同意执行提交没问题行是的就这么办")
 _CANCEL_WORDS = ("取消", "不用", "算了", "撤销", "不办了", "别了")
+_CONFIRM_PHRASES = frozenset({
+    "确认", "确定", "同意", "执行", "确认执行", "提交", "直接提交", "帮我提交",
+    "帮我直接提交", "就这么办", "没问题", "好的", "好", "嗯", "嗯嗯", "可以", "行",
+    "是的", "对", "继续", "下一步", "继续吧", "提交吧", "就这么定了",
+})
 
 
 def _norm_ymd(year: str, month: str, day: str) -> str:
@@ -83,27 +94,51 @@ def _extract_leave_params(text: str) -> dict[str, str]:
         params["start_date"] = _norm_ymd(*dates[0])
         params["end_date"] = _norm_ymd(*dates[-1])
     else:
-        m = re.search(r"(今天|明天|后天|大后天)", text)
-        if m:
-            day = date.today() + timedelta(days=_RELATIVE_DAY[m.group(1)])
-            params["start_date"] = day.isoformat()
-            params["end_date"] = day.isoformat()
+        rel = re.findall(r"(今天|明天|后天|大后天)", text)
+        if rel:
+            params["start_date"] = (date.today() + timedelta(days=_RELATIVE_DAY[rel[0]])).isoformat()
+            params["end_date"] = (date.today() + timedelta(days=_RELATIVE_DAY[rel[-1]])).isoformat()
     m = re.search(r"(?:因为|原因|理由)[:：]?\s*([^，。,.！!？?\s]{2,30})", text)
     if m:
         params["reason"] = m.group(1).strip()
+    else:
+        m = re.search(r"[，,。]\s*([^，。,.！!？?\s]{1,20})$", text)
+        if m:
+            params["reason"] = m.group(1).strip()
     return params
+
+
+def extract_params_for(intent_type: "IntentType", text: str) -> dict[str, str]:
+    """按意图类型抽取参数，供动作层/多轮补全复用。"""
+    if intent_type == IntentType.leave_apply:
+        return _extract_leave_params(text)
+    if intent_type == IntentType.repair_submit:
+        return _extract_repair_params(text)
+    if intent_type == IntentType.reserve_classroom:
+        return _extract_reserve_params(text)
+    return {}
 
 
 def is_confirm_message(text: str) -> bool:
     """整句都是确认短语（如"确认""好的""没问题"）时视为文本确认。"""
     s = text.strip().strip("，,。.!！?？~～ \t")
-    return 1 <= len(s) <= 10 and all(c in _CONFIRM_CHARS for c in s)
+    return s in _CONFIRM_PHRASES or (
+        1 <= len(s) <= 8 and all(c in _CONFIRM_CHARS for c in s)
+    )
 
 
 def is_cancel_message(text: str) -> bool:
     """短句包含取消语义（如"取消""不用了""算了"）时视为放弃待确认操作。"""
     s = text.strip().strip("，,。.!！?？~～ \t")
     return 1 <= len(s) <= 12 and any(w in s for w in _CANCEL_WORDS)
+
+
+def _intent_usable(intent: "Intent") -> bool:
+    """过滤 LLM 吐出的无效意图（如把\"下一步\"解析成跳转 next）。"""
+    if intent.intent == IntentType.navigate:
+        page = (intent.params.get("page") or "").rstrip("/") or "/"
+        return page in KNOWN_PAGES
+    return True
 
 
 def _extract_repair_params(text: str) -> dict[str, str]:
@@ -176,15 +211,21 @@ def match_rules(text: str) -> "Intent | None":
 
 
 EXTRACT_SYSTEM_PROMPT = (
-    "你是教务智能体的意图识别器。把用户指令解析为有序意图列表（JSON）。"
-    "可选意图：navigate(跳转页面,params.page)、query_schedule(查课表)、study_plan(学习方案)、"
-    "enroll(选课,params.course)、drop(退课,params.course)、query_classroom(查空教室)、"
-    "reserve_classroom(预约教室,params.classroom/week/day_of_week/period/reason，week为1-52周次，"
-    "day_of_week为1-7，period如\"1-2\"节次，reason为预约理由)、"
-    "repair_submit(报修,params.location/type/description，type取值为\"水电设备/电子产品/家具类/教学用具\")、"
-    "leave_apply(请假,params.start_date/end_date/reason，日期格式YYYY-MM-DD)、chat(闲聊/其他)。"
-    '输出格式：{"intents":[{"intent":"...","params":{...},"confidence":0.9}]}。'
-    "只输出 JSON，不要多余文字。"
+    "你是教务智能体的意图识别器。只输出 JSON，不要生成任何文案或申请书。"
+    "把用户指令解析为有序意图列表。可选意图：\n"
+    "- navigate：仅当用户明确要求打开/跳转页面，params.page 必须是已知页面路径（如 /schedule、/selection、/classrooms、/repairs、/leaves）\n"
+    "- query_schedule：查课表；study_plan：学习方案；query_classroom：查空教室\n"
+    "- enroll：选课 params.course；drop：退课 params.course\n"
+    "- reserve_classroom：预约教室 params.classroom/week/day_of_week/period/reason"
+    "（week 1-52，day_of_week 1-7，period 如\"1-2\"，reason 预约理由）\n"
+    "- repair_submit：报修 params.location/type/description"
+    "（type 只能取：水电设备/电子产品/家具类/教学用具）\n"
+    "- leave_apply：请假 params.start_date/end_date/reason"
+    "（日期必须转成 YYYY-MM-DD 实际日期，\"明天\"就写明天日期；没说结束日期则只给 start_date；reason 请假原因）\n"
+    "- chat：仅当与上述动作无关时才用\n"
+    "规则：用户说\"请假/报修/预约/选课/退课\"等，即使带\"帮我直接提交\"，也必须返回对应写操作意图；"
+    "参数缺失时也要返回该意图（params 可以为空），不要返回 chat，不要代写文案。\n"
+    '输出格式：{"intents":[{"intent":"...","params":{...},"confidence":0.9}]}'
 )
 
 
@@ -209,6 +250,12 @@ class IntentResolver:
                 ])
                 intents = self._parse_llm(data)
                 if intents:
+                    # LLM 把动作请求误判成闲聊时，规则命中则优先规则
+                    if all(i.intent == IntentType.chat for i in intents):
+                        rule = match_rules(text)
+                        if rule:
+                            self._put(text, [rule], now)
+                            return [rule], "rules"
                     self._put(text, intents, now)
                     return intents, "llm"
             except (OllamaUnavailable, OllamaTimeout, OllamaBusy):
@@ -227,8 +274,13 @@ class IntentResolver:
         raw = data.get("intents") or []
         intents = []
         for item in raw:
-            intent = Intent(**item)
+            try:
+                intent = Intent(**item)
+            except (ValueError, ValidationError):
+                continue
             intent.need_confirm = intent.intent in WRITE_INTENTS
+            if not _intent_usable(intent):
+                continue
             intents.append(intent)
         return intents
 

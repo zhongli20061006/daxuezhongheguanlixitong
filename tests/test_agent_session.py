@@ -52,3 +52,22 @@ def test_facts_included_in_context():
     store.add_fact("u1", sess["session_id"], "已选课：高等数学")
     ctx = store.build_context("u1", sess["session_id"], budget_tokens=8000)
     assert "高等数学" in ctx[0]["content"]
+
+
+def test_pending_write_roundtrip():
+    store = SessionStore()
+    sess = store.create("u1")
+    store.set_pending_write("u1", sess["session_id"], "leave_apply", {"start_date": "2026-08-05"})
+    pending = store.get_pending_write("u1", sess["session_id"])
+    assert pending["intent"] == "leave_apply"
+    assert pending["params"]["start_date"] == "2026-08-05"
+    store.clear_pending_write("u1", sess["session_id"])
+    assert store.get_pending_write("u1", sess["session_id"]) is None
+
+
+def test_pending_write_expires(monkeypatch):
+    store = SessionStore()
+    sess = store.create("u1")
+    store.set_pending_write("u1", sess["session_id"], "leave_apply", {})
+    monkeypatch.setattr(store, "_now", lambda: time.time() + 301)
+    assert store.get_pending_write("u1", sess["session_id"]) is None
