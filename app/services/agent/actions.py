@@ -171,6 +171,48 @@ class ActionExecutor:
             content=f"共 {len(items)} 条课程安排", data={"schedule": items, "class": cls.name},
         )]
 
+    async def _handle_query_students(self, intent, user_id, role, session_id, db):
+        from app.models import Student
+        from app.services.agent import AgentMessage
+
+        params = intent.params
+        sid = (params.get("student_id") or "").strip()
+        name = (params.get("name") or "").strip()
+        class_ref = (params.get("class") or "").strip()
+        if not (sid or name or class_ref):
+            return [AgentMessage(
+                kind="text",
+                content="查学生名单需要班级、姓名或学号，例如“5班有哪些学生”",
+            )]
+        if sid:
+            rows = (await db.execute(
+                select(Student).where(Student.id == sid)
+            )).scalars().all()
+        elif name:
+            rows = (await db.execute(
+                select(Student).where(Student.name == name)
+            )).scalars().all()
+        else:
+            cls, err = await self._resolve_class(class_ref, db)
+            if err:
+                return [AgentMessage(kind="error", title="业务失败", content=err)]
+            rows = (await db.execute(
+                select(Student).where(Student.class_id == cls.id).order_by(Student.id)
+            )).scalars().all()
+        if not rows:
+            return [AgentMessage(
+                kind="card", title="学生名单",
+                content="未找到学生", data={"students": []},
+            )]
+        students = [{"student_id": s.id, "name": s.name, "class_id": s.class_id} for s in rows]
+        if len(students) > 50:
+            shown, note = students[:50], f"共 {len(students)} 人，仅显示前 50 人"
+        else:
+            shown, note = students, f"共 {len(students)} 人"
+        return [AgentMessage(
+            kind="card", title="学生名单", content=note, data={"students": shown},
+        )]
+
     async def _handle_study_plan(self, intent, user_id, role, session_id, db):
         from app.services.agent import AgentMessage
 

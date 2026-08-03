@@ -738,3 +738,47 @@ async def test_query_class_schedule_ambiguous_class(db, test_engine):
     )
     assert msgs[0].kind == "error"
     assert "多个班级" in msgs[0].content
+
+
+@pytest.mark.asyncio
+async def test_teacher_query_students_by_class(db, test_engine):
+    await _seed(db, test_engine)
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_students, params={"class": "测试班"}),
+        "T10001", "teacher", "s", db,
+    )
+    assert msgs[0].kind == "card"
+    assert msgs[0].data["students"][0]["student_id"] == "S2024001"
+
+
+@pytest.mark.asyncio
+async def test_teacher_query_students_by_name(db, test_engine):
+    await _seed(db, test_engine)
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_students, params={"name": "测试学生"}),
+        "T10001", "teacher", "s", db,
+    )
+    assert msgs[0].kind == "card"
+    assert len(msgs[0].data["students"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_query_students_missing_params(db):
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_students, params={}),
+        "T10001", "teacher", "s", db,
+    )
+    assert msgs[0].kind == "text"
+
+
+@pytest.mark.asyncio
+async def test_student_blocked_from_query_students(db):
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_students, params={"class": "测试班"}),
+        "S2024001", "student", "s", db,
+    )
+    assert msgs[0].kind == "error"
