@@ -179,6 +179,16 @@ def test_rules_approve_reject():
     assert intent.params["result"] == "驳回"
 
 
+def test_rules_plan_followup():
+    intent = match_rules("其他的呢")
+    assert intent.intent == IntentType.study_plan
+    intent = match_rules("剩下的课怎么安排")
+    assert intent.intent == IntentType.study_plan
+    # 具体动作不被追问词误伤
+    intent = match_rules("帮我选其他课")
+    assert intent.intent == IntentType.enroll
+
+
 def test_is_param_fragment():
     assert is_param_fragment("8.4号到8.5号")
     assert is_param_fragment("明天")

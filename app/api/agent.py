@@ -20,6 +20,27 @@ from app.services.agent.session import SessionStore
 
 logger = logging.getLogger("student_management")
 
+_PLAN_FOLLOWUP_WORDS = ("其他", "剩下", "还有", "别的")
+
+
+def _is_plan_followup(message: str, user_id: str, session_id: str) -> bool:
+    """学习方案追问（"其他的呢/剩下的课呢"）：短句 + 会话近期出现过方案卡片。"""
+    text = message.strip()
+    if not text or len(text) > 12:
+        return False
+    if not any(w in text for w in _PLAN_FOLLOWUP_WORDS):
+        return False
+    session = session_store.get(user_id, session_id)
+    if not session:
+        return False
+    for msg in reversed(session.get("messages", [])[-10:]):
+        if msg.get("role") == "assistant" and msg.get("kind") == "card":
+            content = msg.get("content") or ""
+            if '"courses"' in content or "学习方案" in content:
+                return True
+    return False
+
+
 agent_llm = OllamaClient(
     base_url=settings.ollama_base_url,
     model=settings.ollama_model,
@@ -129,6 +150,23 @@ async def agent_chat(
                         user_id, session_id, "assistant", m.content or m.title, kind=m.kind
                     )
                 return {"session_id": session_id, "messages": outcome, "source": "pending"}
+    if _is_plan_followup(req.message, user_id, session_id):
+        intent = Intent(intent=IntentType.study_plan, params={}, need_confirm=False)
+        try:
+            outcome = await executor.execute(intent, user_id, role, session_id, db, raw_text=req.message)
+        except Exception:
+            logger.exception("agent plan followup failed")
+            outcome = [AgentMessage(kind="error", content="系统异常，请稍后重试")]
+        if not outcome:
+            outcome = [AgentMessage(kind="error", content="学习方案生成失败，请稍后再试")]
+        ok = not any(m.kind == "error" for m in outcome)
+        outcome.append(AgentMessage(
+            kind="summary",
+            content=f"共 1 个指令：成功 {1 if ok else 0}、业务失败 {0 if not ok else 1}、跳过 0、系统中断 0",
+        ))
+        for m in outcome:
+            session_store.add_message(user_id, session_id, "assistant", m.content or m.title, kind=m.kind)
+        return {"session_id": session_id, "messages": outcome, "source": "plan_followup"}
     try:
         intents, source = await resolver.resolve(req.message)
     except Exception:

@@ -836,7 +836,7 @@ class ActionExecutor:
             f"- {c['course']}（{c['day']} {c['period']}节，{c['classroom']}，{c['teacher']}）" for c in courses
         )
         prompt = (
-            "你是大学生学习规划助手。根据明天的课表生成学习方案，输出 JSON："
+            "根据明天的课表为每一门课生成学习方案，必须覆盖课表中全部课程，一门都不能少。"
             '{"courses":[{"course":"课程名","duration_minutes":60,"preview":"预习要点","review":"复习要点","priority":"高/中/低"}],"summary":"一句话整体安排"}'
             f"\n明天的课表：\n{schedule_lines}"
         )
@@ -845,10 +845,51 @@ class ActionExecutor:
                 {"role": "system", "content": PLAN_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ])
-            return json.dumps(data, ensure_ascii=False)
+            return self._merge_plan(courses, data)
         except Exception as exc:  # 模型不可用时降级模板
             logger.warning("study plan fell back to template: %s", exc)
             return self._template_plan(courses)
+
+    @classmethod
+    def _merge_plan(cls, courses: list[dict], data) -> str:
+        """LLM 输出缺课/少课时用模板补齐，保证每门课都有方案。"""
+        llm_courses = data.get("courses") if isinstance(data, dict) else None
+        entries: list[dict] = []
+        for course in courses:
+            name = course["course"]
+            match = None
+            if isinstance(llm_courses, list):
+                for item in llm_courses:
+                    if not isinstance(item, dict):
+                        continue
+                    candidate = str(item.get("course") or "").strip()
+                    if candidate and (candidate == name or candidate in name or name in candidate):
+                        match = item
+                        break
+            if match:
+                try:
+                    duration = int(match.get("duration_minutes") or 60)
+                except (TypeError, ValueError):
+                    duration = 60
+                priority = match.get("priority")
+                entries.append({
+                    "course": name,
+                    "duration_minutes": duration,
+                    "preview": str(match.get("preview") or f"预习{name}核心概念"),
+                    "review": str(match.get("review") or "整理笔记并完成课后练习"),
+                    "priority": priority if priority in ("高", "中", "低") else "中",
+                })
+            else:
+                entries.append({
+                    "course": name, "duration_minutes": 60,
+                    "preview": f"预习{name}核心概念，标记疑点",
+                    "review": "整理课堂笔记，复习当天要点，完成课后练习",
+                    "priority": "中",
+                })
+        summary = str(data.get("summary") or "").strip() if isinstance(data, dict) else ""
+        if not summary:
+            summary = f"明天共 {len(courses)} 节课，按上表逐科完成预习与复习。"
+        return json.dumps({"courses": entries, "summary": summary}, ensure_ascii=False)
 
     @staticmethod
     def _template_plan(courses: list[dict]) -> str:

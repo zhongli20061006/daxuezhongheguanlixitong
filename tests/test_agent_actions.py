@@ -1,4 +1,5 @@
 """动作执行器：权限、课表查询、学习方案降级、选课预检与确认执行。"""
+import json
 from datetime import date, timedelta
 
 from sqlalchemy import select
@@ -37,6 +38,19 @@ class CapturingLLM(FakeLLM):
     async def chat(self, messages):
         self.captured = messages
         return "模型回复"
+
+
+class PartialPlanLLM(FakeLLM):
+    """模拟模型偷懒：只输出一门课的学习方案。"""
+
+    async def extract_json(self, messages):
+        return {
+            "courses": [{
+                "course": "人工智能实战", "duration_minutes": 90,
+                "preview": "p", "review": "r", "priority": "高",
+            }],
+            "summary": "只计划了AI",
+        }
 
 
 async def _cleanup(test_engine):
@@ -471,6 +485,30 @@ async def test_chat_prepends_system_prompt(db):
     assert "智伴校园" in llm.captured[0]["content"]
     assert "确认卡片" in llm.captured[0]["content"]
     assert llm.captured[-1] == {"role": "user", "content": "你好"}
+
+
+@pytest.mark.asyncio
+async def test_study_plan_covers_all_courses(db, test_engine):
+    """模型只输出部分课程时，方案必须补全所有科目。"""
+    await _seed(db, test_engine)
+    db.add(Subject(id=3, name="大学英语", credit=3.0, type=SubjectType.compulsory))
+    await db.flush()
+    db.add(Schedule(
+        id=99, teacher_id=1, subject_id=3, class_id=1, classroom_id=1,
+        weeks="1-18", day_of_week=_tomorrow_weekday(), period="1-2", semester="2024-2025-1",
+    ))
+    await db.commit()
+    executor = ActionExecutor(PartialPlanLLM(), ConfirmationStore(), SessionStore())
+    msgs = await executor.execute(Intent(intent=IntentType.study_plan), "S2024001", "student", "s1", db)
+    assert msgs[0].kind == "card"
+    plan = json.loads(msgs[0].content)
+    names = {c["course"] for c in plan["courses"]}
+    assert names == {"人工智能实战", "大学英语"}
+    ai = next(c for c in plan["courses"] if c["course"] == "人工智能实战")
+    assert ai["priority"] == "高"
+    assert ai["duration_minutes"] == 90
+    english = next(c for c in plan["courses"] if c["course"] == "大学英语")
+    assert english["priority"] == "中"
 
 
 @pytest.mark.asyncio

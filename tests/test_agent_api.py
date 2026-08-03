@@ -477,3 +477,20 @@ async def test_chat_approve_leave_teacher_flow(client, db, test_engine, fake_llm
         assert leaves[0].status == "已通过"
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_chat_plan_followup_others(client, db, test_engine, auth_override, fake_llm):
+    """学习方案后追问"其他的呢"应重新生成完整方案，而不是掉进闲聊。"""
+    await _seed_agent_data(db, test_engine)
+    resp = await client.post("/agent/chat", json={"message": "给明天学习方案"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert any(m["kind"] == "card" for m in data["messages"])
+    sid = data["session_id"]
+
+    resp2 = await client.post("/agent/chat", json={"session_id": sid, "message": "其他的呢"})
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["source"] == "plan_followup"
+    assert any(m["kind"] == "card" for m in data2["messages"])

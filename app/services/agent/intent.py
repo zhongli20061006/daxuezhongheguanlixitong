@@ -67,6 +67,8 @@ RULE_TABLE: list[tuple[IntentType, list[str], str | None]] = [
     (IntentType.repair_submit, ["报修", "修一下", "后勤", "东西坏了"], None),
     (IntentType.approve_leave, ["审批", "批准", "驳回", "同意请假"], None),
     (IntentType.leave_apply, ["请假", "休假申请"], None),
+    # 学习方案追问（放最后：先让具体动作意图匹配，避免"其他"误伤）
+    (IntentType.study_plan, ["其他的呢", "其他科目", "剩下的", "还有呢"], None),
 ]
 
 _DATE_RE = re.compile(r"(20\d{2})[-/年](\d{1,2})[-/月](\d{1,2})日?")
