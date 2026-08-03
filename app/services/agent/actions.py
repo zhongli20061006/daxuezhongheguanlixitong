@@ -177,9 +177,55 @@ class ActionExecutor:
         )]
 
     async def _handle_query_classroom(self, intent, user_id, role, session_id, db):
-        return await self._handle_navigate(
-            Intent(intent=IntentType.navigate, params={"page": "/classrooms"}), user_id, role, session_id, db
-        )
+        from app.services.agent import AgentMessage
+
+        week, day, period, building, min_capacity = self._parse_classroom_params(intent.params)
+        if week is None or day is None or not period:
+            return [AgentMessage(
+                kind="error", title="业务失败",
+                content="请告诉我周次、星期和节次，例如：查询第3周周一1-2节的空教室",
+            )]
+        if not (1 <= week <= 52 and 1 <= day <= 7):
+            return [AgentMessage(kind="error", title="业务失败", content="周次需在 1-52，星期需在 1-7")]
+        # 与 /classrooms/available 一致：排除课程占用 + 已预约
+        schedules = (await db.execute(
+            select(Schedule).where(Schedule.day_of_week == day)
+        )).scalars().all()
+        scheduled_ids = {
+            s.classroom_id for s in schedules
+            if is_week_matched(week, s.weeks) and is_period_overlap(period, s.period)
+        }
+        reserved = (await db.execute(
+            select(ClassroomReservation).where(
+                ClassroomReservation.week == week,
+                ClassroomReservation.day_of_week == day,
+                ClassroomReservation.period == period,
+                ClassroomReservation.status == "已预约",
+            )
+        )).scalars().all()
+        reserved_ids = {r.classroom_id for r in reserved}
+        occupied = scheduled_ids | reserved_ids
+        query = select(Classroom)
+        if occupied:
+            query = query.where(Classroom.id.not_in(occupied))
+        if min_capacity:
+            query = query.where(Classroom.capacity >= min_capacity)
+        if building:
+            query = query.where(Classroom.building == building)
+        rooms = (await db.execute(query.order_by(Classroom.name))).scalars().all()
+        items = [{
+            "id": c.id, "name": c.name, "capacity": c.capacity,
+            "building": c.building or "", "has_projector": c.has_projector,
+        } for c in rooms]
+        label = f"第{week}周 {WEEKDAY_CN[day - 1]} {period}节"
+        if not items:
+            return [AgentMessage(kind="card", title="空教室查询",
+                                 content=f"{label} 没有空闲教室", data={"classrooms": []})]
+        return [AgentMessage(
+            kind="card", title="空教室查询",
+            content=f"{label} 共 {len(items)} 间空闲教室",
+            data={"classrooms": items, "week": week, "day_of_week": day, "period": period},
+        )]
 
     async def _handle_query_scores(self, intent, user_id, role, session_id, db):
         from app.services.agent import AgentMessage
@@ -666,6 +712,28 @@ class ActionExecutor:
                 return row
         return rows[0] if len(rows) == 1 else None
 
+    @staticmethod
+    def _norm_period(value) -> str:
+        """节次规范化：去掉"节"字、统一分隔符（1-2 / 1--2 / 1~2 / 1至2 → 1-2）。"""
+        return re.sub(r"[-~至]{1,2}", "-", (value or "").strip().replace("节", "").strip())
+
+    @staticmethod
+    def _parse_classroom_params(params: dict) -> tuple:
+        week_raw = (params.get("week") or "").strip()
+        day_raw = (params.get("day_of_week") or "").strip()
+        try:
+            week = int(week_raw) if week_raw else None
+            day = int(day_raw) if day_raw else None
+        except (TypeError, ValueError):
+            week = day = None
+        period = ActionExecutor._norm_period(params.get("period", ""))
+        building = (params.get("building") or "").strip() or None
+        try:
+            min_capacity = int(params.get("capacity") or 0)
+        except (TypeError, ValueError):
+            min_capacity = 0
+        return week, day, period, building, min_capacity
+
     async def _precheck_reserve(self, params: dict, db) -> tuple[bool, str, dict]:
         classroom = await self._resolve_classroom(params.get("classroom", ""), db)
         if classroom is None:
@@ -675,7 +743,7 @@ class ActionExecutor:
             day = int(params.get("day_of_week", ""))
         except (TypeError, ValueError):
             return False, "请提供预约周次（1-52）和星期（1-7）", {}
-        period = (params.get("period") or "").strip().replace("节", "").strip()
+        period = self._norm_period(params.get("period", ""))
         reason = (params.get("reason") or "").strip()
         if not (1 <= week <= 52 and 1 <= day <= 7):
             return False, "周次需在 1-52，星期需在 1-7", {}

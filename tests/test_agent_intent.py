@@ -189,6 +189,17 @@ def test_rules_plan_followup():
     assert intent.intent == IntentType.enroll
 
 
+def test_rules_query_classroom_extracts_params():
+    intent = match_rules("帮我查询第三周星期一第1--2节的空教室")
+    assert intent.intent == IntentType.query_classroom
+    assert intent.params["week"] == "3"
+    assert intent.params["day_of_week"] == "1"
+    assert intent.params["period"] == "1-2"
+    intent = match_rules("查周五第3-4节空教室")
+    assert intent.params["day_of_week"] == "5"
+    assert intent.params["period"] == "3-4"
+
+
 def test_is_param_fragment():
     assert is_param_fragment("8.4号到8.5号")
     assert is_param_fragment("明天")

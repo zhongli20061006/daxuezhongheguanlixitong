@@ -80,6 +80,14 @@
                 <el-table-column prop="classroom" label="教室" width="100" />
                 <el-table-column prop="seat" label="座位" width="70" />
               </el-table>
+              <el-table v-else-if="m.data?.classrooms" :data="m.data.classrooms" size="small">
+                <el-table-column prop="name" label="教室" />
+                <el-table-column prop="building" label="教学楼" width="110" />
+                <el-table-column prop="capacity" label="容量" width="70" />
+                <el-table-column label="投影" width="70">
+                  <template #default="{ row }">{{ row.has_projector ? '有' : '无' }}</template>
+                </el-table-column>
+              </el-table>
               <pre v-else class="plain">{{ m.content }}</pre>
             </div>
           </el-card>

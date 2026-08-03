@@ -83,6 +83,21 @@ _REPAIR_TYPE_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
 ]
 
 _WEEKDAY_CN_MAP = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "日": 7, "天": 7}
+_CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
+
+
+def _cn_to_int(value: str) -> int:
+    """中文数字转整数，支持 1-9、10-19、二十/三十。"""
+    if value.isdigit():
+        return int(value)
+    if value in _CN_NUM:
+        return _CN_NUM[value]
+    if "十" in value:
+        parts = value.split("十")
+        tens = _CN_NUM.get(parts[0], 1) if parts[0] else 1
+        ones = _CN_NUM.get(parts[1], 0) if len(parts) > 1 and parts[1] else 0
+        return tens * 10 + ones
+    return 0
 
 _RELATIVE_DAY = {"今天": 0, "明天": 1, "后天": 2, "大后天": 3}
 
@@ -143,6 +158,8 @@ def _extract_leave_params(text: str) -> dict[str, str]:
 
 def extract_params_for(intent_type: "IntentType", text: str) -> dict[str, str]:
     """按意图类型抽取参数，供动作层/多轮补全复用。"""
+    if intent_type == IntentType.query_classroom:
+        return _extract_classroom_params(text)
     if intent_type == IntentType.leave_apply:
         return _extract_leave_params(text)
     if intent_type == IntentType.repair_submit:
@@ -210,18 +227,36 @@ def _extract_reserve_params(text: str) -> dict[str, str]:
     m = re.search(r"([A-Za-z]{1,4}\d{2,4})", text)
     if m:
         params["classroom"] = m.group(1)
-    m = re.search(r"第?\s*(\d{1,2})\s*周", text)
+    m = re.search(r"第?\s*([一二三四五六七八九十\d]{1,3})\s*周", text)
     if m:
-        params["week"] = str(int(m.group(1)))
-    m = re.search(r"周([一二三四五六日天])", text)
+        params["week"] = str(_cn_to_int(m.group(1)))
+    m = re.search(r"(?:星期|周)([一二三四五六日天])", text)
     if m:
         params["day_of_week"] = str(_WEEKDAY_CN_MAP[m.group(1)])
-    m = re.search(r"(\d{1,2})\s*[-~至]\s*(\d{1,2})\s*节?", text)
+    m = re.search(r"(\d{1,2})\s*[-~至]{1,2}\s*(\d{1,2})\s*节?", text)
     if m:
         params["period"] = f"{int(m.group(1))}-{int(m.group(2))}"
     m = re.search(r"(?:用于|因为|理由|为了)[:：]?\s*([^，。,.！!？?\s]{2,20})", text)
     if m:
         params["reason"] = m.group(1).strip()
+    return params
+
+
+def _extract_classroom_params(text: str) -> dict[str, str]:
+    """规则兜底：抽取空教室查询的周次/星期/节次/容量。"""
+    params: dict[str, str] = {}
+    m = re.search(r"第?\s*([一二三四五六七八九十\d]{1,3})\s*周", text)
+    if m:
+        params["week"] = str(_cn_to_int(m.group(1)))
+    m = re.search(r"(?:星期|周)([一二三四五六日天])", text)
+    if m:
+        params["day_of_week"] = str(_WEEKDAY_CN_MAP[m.group(1)])
+    m = re.search(r"(\d{1,2})\s*[-~至]{1,2}\s*(\d{1,2})\s*节?", text)
+    if m:
+        params["period"] = f"{int(m.group(1))}-{int(m.group(2))}"
+    m = re.search(r"(?:容量|至少|座位)[:：]?\s*(\d+)\s*人?", text)
+    if m:
+        params["capacity"] = m.group(1)
     return params
 
 
@@ -257,6 +292,8 @@ def match_rules(text: str) -> "Intent | None":
                 params: dict[str, str] = {}
                 if intent == IntentType.leave_apply:
                     params = _extract_leave_params(lowered)
+                elif intent == IntentType.query_classroom:
+                    params = _extract_classroom_params(lowered)
                 elif intent == IntentType.repair_submit:
                     params = _extract_repair_params(lowered)
                 elif intent == IntentType.reserve_classroom:

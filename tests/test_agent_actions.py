@@ -403,6 +403,74 @@ async def test_reserve_classroom_already_reserved(db, test_engine):
     assert "已被其他人预约" in msgs[0].content
 
 
+@pytest.mark.asyncio
+async def test_query_classroom_returns_free_rooms(db, test_engine):
+    await _seed(db, test_engine)
+    db.add(Classroom(id=2, name="D102", capacity=60, building="D", has_projector=False))
+    await db.commit()
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_classroom, params={
+            "week": "3", "day_of_week": "1", "period": "1-2",
+        }),
+        "S2024001", "student", "s1", db,
+    )
+    assert msgs[0].kind == "card"
+    names = {c["name"] for c in msgs[0].data["classrooms"]}
+    assert names == {"D101", "D102"}
+
+
+@pytest.mark.asyncio
+async def test_query_classroom_excludes_occupied(db, test_engine):
+    await _seed(db, test_engine)
+    db.add(Classroom(id=2, name="D102", capacity=60, building="D", has_projector=False))
+    await db.flush()
+    db.add(Schedule(
+        id=98, teacher_id=1, subject_id=1, class_id=1, classroom_id=1,
+        weeks="1-18", day_of_week=1, period="1-2", semester="2024-2025-1",
+    ))
+    await db.commit()
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_classroom, params={
+            "week": "3", "day_of_week": "1", "period": "1-2",
+        }),
+        "S2024001", "student", "s1", db,
+    )
+    names = {c["name"] for c in msgs[0].data["classrooms"]}
+    assert names == {"D102"}
+
+
+@pytest.mark.asyncio
+async def test_query_classroom_excludes_reserved(db, test_engine):
+    await _seed(db, test_engine)
+    db.add(ClassroomReservation(
+        classroom_id=1, week=3, day_of_week=1, period="1-2",
+        user_id="X", user_role="student", reason="占用", status="已预约",
+    ))
+    await db.commit()
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_classroom, params={
+            "week": "3", "day_of_week": "1", "period": "1-2",
+        }),
+        "S2024001", "student", "s1", db,
+    )
+    assert msgs[0].kind == "card"
+    assert msgs[0].data["classrooms"] == []
+
+
+@pytest.mark.asyncio
+async def test_query_classroom_missing_params(db, test_engine):
+    await _seed(db, test_engine)
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_classroom, params={}),
+        "S2024001", "student", "s1", db,
+    )
+    assert msgs[0].kind == "error"
+
+
 async def _add_elective(db, subject_id: int, name: str, schedule_id: int, day: int, period: str):
     """追加一门选修课及其课表/容量，供课程模糊匹配测试使用。"""
     db.add(Subject(id=subject_id, name=name, credit=2.0, type=SubjectType.elective))

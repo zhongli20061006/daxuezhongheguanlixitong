@@ -494,3 +494,21 @@ async def test_chat_plan_followup_others(client, db, test_engine, auth_override,
     data2 = resp2.json()
     assert data2["source"] == "plan_followup"
     assert any(m["kind"] == "card" for m in data2["messages"])
+
+
+@pytest.mark.asyncio
+async def test_chat_query_classroom_direct(client, db, test_engine, auth_override, fake_llm):
+    """复现用户场景：'查询第三周星期一第1--2节的空教室' 应直接返回结果卡片而非跳转。"""
+    await _seed_agent_data(db, test_engine)
+    db.add(Classroom(id=2, name="D102", capacity=60, building="D", has_projector=False))
+    await db.commit()
+    resp = await client.post("/agent/chat", json={
+        "message": "帮我查询第三周星期一第1--2节的空教室",
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    cards = [m for m in data["messages"] if m["kind"] == "card"]
+    assert cards, data["messages"]
+    assert cards[0]["title"] == "空教室查询"
+    assert cards[0]["data"]["classrooms"]
+    assert cards[0]["navigation"] is None
