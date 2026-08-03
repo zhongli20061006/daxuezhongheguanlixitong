@@ -782,3 +782,49 @@ async def test_student_blocked_from_query_students(db):
         "S2024001", "student", "s", db,
     )
     assert msgs[0].kind == "error"
+
+
+@pytest.mark.asyncio
+async def test_score_entry_blocked_for_student(db):
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.score_entry, params={
+            "student": "S2024001", "course": "人工智能实战", "score": "90",
+        }),
+        "S2024001", "student", "s", db,
+    )
+    assert msgs[0].kind == "error"
+
+
+@pytest.mark.asyncio
+async def test_score_entry_missing_params_asks(db):
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.score_entry, params={"score": "90"}),
+        "T10001", "teacher", "s", db,
+    )
+    assert msgs[0].kind == "text"
+    assert "学生" in msgs[0].content
+
+
+@pytest.mark.asyncio
+async def test_score_entry_confirmation_then_execute(db, test_engine):
+    await _seed(db, test_engine)
+    db.add(CourseSelection(student_id="S2024001", schedule_id=1, status=1))
+    await db.commit()
+    executor = _executor()
+    intent = Intent(intent=IntentType.score_entry, params={
+        "student": "S2024001", "course": "人工智能实战", "score": "90", "score_type": "期末",
+    }, need_confirm=True)
+    msgs = await executor.execute(intent, "T10001", "teacher", "sess1", db)
+    assert msgs[0].kind == "confirmation"
+    token = msgs[0].confirm_token
+    results = await executor.execute_confirm(
+        executor.confirmations.consume("T10001", token), db
+    )
+    assert results[0].kind == "card"
+    scores = (await db.execute(
+        select(Score).where(Score.student_id == "S2024001")
+    )).scalars().all()
+    assert len(scores) == 1
+    assert scores[0].score == 90

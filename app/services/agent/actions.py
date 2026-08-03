@@ -213,6 +213,122 @@ class ActionExecutor:
             kind="card", title="学生名单", content=note, data={"students": shown},
         )]
 
+    async def _handle_score_entry(self, intent, user_id, role, session_id, db):
+        from app.services.agent import AgentMessage
+
+        if role != "teacher":
+            return [AgentMessage(kind="error", title="业务失败", content="仅教师可录入成绩")]
+        params = intent.params
+        missing = [k for k in ("student", "course", "score")
+                   if not (params.get(k) or "").strip()]
+        if missing:
+            self.sessions.set_pending_write(user_id, session_id, intent.intent.value, params)
+            return [AgentMessage(
+                kind="text",
+                content="请提供学生（姓名或学号）、课程和分数，例如“把张三的高数成绩录成90分”",
+            )]
+        ok, reason, info = await self._precheck_score_entry(params, user_id, db)
+        if not ok:
+            return [AgentMessage(kind="error", title="业务失败", content=reason, data=info)]
+        self.sessions.clear_pending_write(user_id, session_id)
+        token = self.confirmations.create(user_id, {
+            "action": "score_entry",
+            "schedule_id": info["schedule_id"],
+            "student_id": info["student_id"],
+            "score": info["score"],
+            "score_type": info["score_type"],
+            "user_id": user_id,
+            "session_id": session_id,
+        })
+        return [AgentMessage(
+            kind="confirmation", title="确认录入成绩",
+            content=f"{info['student_name']} · {info['course']} · {info['score']}分（{info['score_type']}）",
+            data=info, confirm_token=token,
+        )]
+
+    async def _precheck_score_entry(self, params, user_id, db):
+        """预检查：分数范围、学生唯一、课程归属当前教师、学生已选课。"""
+        from app.models import CourseSelection, Schedule, Student, Subject, Teacher
+
+        score_raw = params.get("score")
+        if isinstance(score_raw, str):
+            score_raw = score_raw.strip()
+        try:
+            score = float(score_raw)
+        except (TypeError, ValueError):
+            return False, "分数必须是数字", {}
+        if score < 0 or score > 100:
+            return False, "分数必须在 0-100 之间", {}
+        teacher = (await db.execute(
+            select(Teacher).where(Teacher.job_number == user_id)
+        )).scalar_one_or_none()
+        if not teacher:
+            return False, "教师信息不存在", {}
+        student_ref = (params.get("student") or params.get("student_id") or "").strip()
+        if student_ref.isdigit() or student_ref.upper().startswith("S"):
+            student = (await db.execute(
+                select(Student).where(Student.id == student_ref)
+            )).scalar_one_or_none()
+        else:
+            student = (await db.execute(
+                select(Student).where(Student.name == student_ref)
+            )).scalar_one_or_none()
+        if not student:
+            return False, f"找不到学生“{student_ref}”", {}
+        if params.get("schedule_id") is not None:
+            try:
+                schedule_id = int(params["schedule_id"])
+            except (TypeError, ValueError):
+                return False, "课程信息无效", {}
+            schedule = (await db.execute(
+                select(Schedule).where(
+                    Schedule.id == schedule_id, Schedule.teacher_id == teacher.id
+                )
+            )).scalar_one_or_none()
+            if not schedule:
+                return False, "无权操作该课程", {}
+            subject = (await db.execute(
+                select(Subject).where(Subject.id == schedule.subject_id)
+            )).scalar_one_or_none()
+            if not subject:
+                return False, "课程信息不存在", {}
+        else:
+            course_ref = (params.get("course") or "").strip()
+            rows = (await db.execute(
+                select(Schedule, Subject)
+                .join(Subject, Schedule.subject_id == Subject.id)
+                .where(Schedule.teacher_id == teacher.id)
+            )).all()
+            matched = [r for r in rows if r.Subject.name == course_ref] or [
+                r for r in rows if course_ref in r.Subject.name or r.Subject.name in course_ref
+            ]
+            if not matched:
+                return False, f"没找到你教的课程“{course_ref}”", {}
+            if len(matched) > 1:
+                names = "、".join(r.Subject.name for r in matched)
+                return False, f"课程“{course_ref}”匹配到多个（{names}），请补充更完整课程名", {}
+            schedule, subject = matched[0]
+        enrolled = (await db.execute(
+            select(CourseSelection).where(
+                CourseSelection.student_id == student.id,
+                CourseSelection.schedule_id == schedule.id,
+                CourseSelection.status == 1,
+            )
+        )).scalar_one_or_none()
+        if not enrolled:
+            return False, f"学生 {student.id} 未选该课程", {}
+        score_type = (params.get("score_type") or "期末").strip()
+        if score_type not in ("平时", "期末"):
+            return False, "成绩类型只能是“平时”或“期末”", {}
+        return True, "", {
+            "schedule_id": schedule.id,
+            "student_id": student.id,
+            "student_name": student.name,
+            "course": subject.name,
+            "score": score,
+            "score_type": score_type,
+        }
+
     async def _handle_study_plan(self, intent, user_id, role, session_id, db):
         from app.services.agent import AgentMessage
 
@@ -642,6 +758,38 @@ class ActionExecutor:
                 kind="card", title="预约成功",
                 content=f"已预约 {info['classroom']}：第{info['week']}周 "
                         f"{WEEKDAY_CN[info['day_of_week'] - 1]} {info['period']}节",
+                data=info,
+            )]
+        if action == "score_entry":
+            recheck = {
+                "student_id": payload["student_id"],
+                "schedule_id": payload["schedule_id"],
+                "score": payload["score"],
+                "score_type": payload["score_type"],
+            }
+            ok, reason, info = await self._precheck_score_entry(recheck, payload["user_id"], db)
+            if not ok:
+                return [AgentMessage(kind="error", title="业务失败", content=reason, data=info)]
+            try:
+                from app.services.score_service import record_score
+
+                inserted, updated = await record_score(
+                    db, schedule_id=info["schedule_id"], student_id=info["student_id"],
+                    score=info["score"], score_type=info["score_type"],
+                )
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                logger.exception("agent score entry failed")
+                return [AgentMessage(kind="error", title="系统异常", content="成绩录入失败，请稍后重试")]
+            verb = "更新" if updated else "录入"
+            self.sessions.add_fact(
+                user_id, session_id,
+                f"已{verb}成绩：{info['student_name']} {info['course']} {info['score']}分（{info['score_type']}）",
+            )
+            return [AgentMessage(
+                kind="card", title="成绩录入成功",
+                content=f"已{verb} {info['student_name']} 的 {info['course']}：{info['score']} 分（{info['score_type']}）",
                 data=info,
             )]
         if action == "approve_leave":

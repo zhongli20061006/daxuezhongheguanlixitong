@@ -512,3 +512,49 @@ async def test_chat_query_classroom_direct(client, db, test_engine, auth_overrid
     assert cards[0]["title"] == "空教室查询"
     assert cards[0]["data"]["classrooms"]
     assert cards[0]["navigation"] is None
+
+
+class ScoreLLM(FakeLLM):
+    async def extract_json(self, messages):
+        return {"intents": [{
+            "intent": "score_entry",
+            "params": {
+                "student": "测试学生", "course": "人工智能实战",
+                "score": "90", "score_type": "期末",
+            },
+            "confidence": 0.9,
+        }]}
+
+
+@pytest.mark.asyncio
+async def test_chat_score_entry_teacher_flow(client, db, test_engine, monkeypatch):
+    """教师录入成绩：确认卡片 → 文本确认 → 落库。"""
+    from app.api import agent as agent_api
+    from app.deps import get_current_user
+    from app.main import app
+
+    await _seed_agent_data(db, test_engine)
+    db.add(CourseSelection(student_id="S2024001", schedule_id=1, status=1))
+    await db.commit()
+    monkeypatch.setattr(agent_api.resolver, "llm", ScoreLLM())
+
+    app.dependency_overrides[get_current_user] = lambda: {
+        "username": "T10001", "role": "teacher", "role_id": "T10001",
+    }
+    try:
+        resp = await client.post("/agent/chat", json={
+            "message": "把测试学生的人工智能实战成绩录成90分",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "confirmation" in [m["kind"] for m in data["messages"]]
+        sid = data["session_id"]
+
+        resp2 = await client.post("/agent/chat", json={"session_id": sid, "message": "确认"})
+        assert resp2.status_code == 200
+        assert resp2.json()["source"] == "confirm"
+        scores = (await db.execute(select(Score))).scalars().all()
+        assert len(scores) == 1
+        assert scores[0].score == 90
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
