@@ -262,8 +262,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(1100px 480px at 88% -8%, rgba(14,165,233,0.07), transparent 60%),
-    radial-gradient(900px 560px at -5% 105%, rgba(99,102,241,0.06), transparent 60%),
+    radial-gradient(1200px 520px at 88% -8%, rgba(14,165,233,0.07), transparent 60%),
+    radial-gradient(1000px 600px at -5% 105%, rgba(99,102,241,0.07), transparent 60%),
     linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
   background-attachment: fixed;
 }
