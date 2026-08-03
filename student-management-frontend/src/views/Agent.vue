@@ -1,6 +1,7 @@
 <template>
   <div class="agent-layout">
     <aside class="session-panel">
+      <div class="session-panel-head">历史会话</div>
       <el-button type="primary" class="new-session-btn" @click="store.newSession()">
         新建对话
       </el-button>
@@ -21,14 +22,37 @@
     </aside>
 
     <main class="chat-panel">
-      <header class="chat-header">
-        <h2>智能体助手</h2>
-        <span class="model-status" :class="store.ollamaStatus">
-          {{ store.ollamaStatus === 'ok' ? '本地模型在线' : '本地模型未连接' }}
-        </span>
-      </header>
+      <div v-if="isHero" class="hero-area">
+        <AgentLogo />
+        <h2 class="hero-title">智伴校园</h2>
+        <p class="hero-subtitle">说一句话，帮你办校园里的事</p>
+        <div class="hero-input">
+          <el-input
+            v-model="input"
+            size="large"
+            placeholder="例如：帮我选人工智能实战 / 明天上什么课 / 查询第三周周一1-2节的空教室"
+            @keyup.enter="sendText(input)"
+            :disabled="store.sending"
+          />
+          <el-button type="primary" size="large" :loading="store.sending" @click="sendText(input)">
+            发送
+          </el-button>
+        </div>
+        <div class="quick-prompts">
+          <el-tag v-for="p in quickPrompts" :key="p" class="prompt-tag" @click="sendText(p)">
+            {{ p }}
+          </el-tag>
+        </div>
+      </div>
+      <template v-else>
+        <header class="chat-header">
+          <h2>智能体助手</h2>
+          <span class="model-status" :class="store.ollamaStatus">
+            {{ store.ollamaStatus === 'ok' ? '本地模型在线' : '本地模型未连接' }}
+          </span>
+        </header>
 
-      <div ref="listRef" class="message-list">
+        <div ref="listRef" class="message-list">
         <div v-if="store.loadingHistory" class="msg typing">会话加载中…</div>
         <template v-for="(m, idx) in store.messages" :key="idx">
           <div v-if="m.own" class="msg own">{{ m.content }}</div>
@@ -104,31 +128,33 @@
           </el-card>
         </template>
         <div v-if="store.sending" class="msg typing">智能体思考中…</div>
-      </div>
+        </div>
 
-      <div class="quick-prompts">
-        <el-tag v-for="p in quickPrompts" :key="p" class="prompt-tag" @click="sendText(p)">
-          {{ p }}
-        </el-tag>
-      </div>
+        <div class="quick-prompts">
+          <el-tag v-for="p in quickPrompts" :key="p" class="prompt-tag" @click="sendText(p)">
+            {{ p }}
+          </el-tag>
+        </div>
 
-      <footer class="input-bar">
-        <el-input
-          v-model="input"
-          placeholder="输入指令，例如：明天上什么课 / 给明天学习方案 / 帮我选人工智能实战"
-          @keyup.enter="sendText(input)"
-          :disabled="store.sending"
-        />
-        <el-button type="primary" :loading="store.sending" @click="sendText(input)">发送</el-button>
-      </footer>
+        <footer class="input-bar">
+          <el-input
+            v-model="input"
+            placeholder="输入指令，例如：明天上什么课 / 给明天学习方案 / 帮我选人工智能实战"
+            @keyup.enter="sendText(input)"
+            :disabled="store.sending"
+          />
+          <el-button type="primary" :loading="store.sending" @click="sendText(input)">发送</el-button>
+        </footer>
+      </template>
     </main>
   </div>
 </template>
 
 <script setup>
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAgentStore } from '../stores/agent'
+import AgentLogo from '../components/AgentLogo.vue'
 
 const store = useAgentStore()
 const router = useRouter()
@@ -136,6 +162,7 @@ const input = ref('')
 const listRef = ref(null)
 
 const quickPrompts = ['明天上什么课', '给明天学习方案', '帮我选人工智能实战', '打开选课页面']
+const isHero = computed(() => store.messages.length === 0)
 
 onMounted(async () => {
   await store.loadSessions()
@@ -247,10 +274,15 @@ function cancelMsg(m) {
 <style scoped>
 .agent-layout { display: flex; min-height: calc(100vh - 48px); }
 .session-panel {
-  width: 220px; border-right: 1px solid #e5e7eb; background: #fff;
+  width: 220px; border-right: 1px solid #e5e7eb;
+  background: #F7F9FC;
   display: flex; flex-direction: column; padding: 12px;
   align-self: flex-start; position: sticky; top: 0;
   height: calc(100vh - 48px);
+}
+.session-panel-head {
+  font-size: 12px; font-weight: 600; color: var(--color-text-muted);
+  margin: 2px 2px 10px;
 }
 .new-session-btn { width: 100%; margin-bottom: 12px; }
 .session-list { flex: 1; overflow-y: auto; }
@@ -259,11 +291,21 @@ function cancelMsg(m) {
   padding: 8px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 4px;
 }
 .session-item:hover { background: #f3f4f6; }
-.session-item.active { background: #e0e7ff; }
+.session-item.active { background: var(--color-primary-bg); }
 .session-title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-panel {
   flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0;
 }
+.hero-area {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 24px; text-align: center;
+}
+.hero-title { font-size: 26px; font-weight: 700; color: var(--color-text-primary); margin: 10px 0 0; }
+.hero-subtitle { color: var(--color-text-tertiary); font-size: 14px; margin: 0; }
+.hero-input { display: flex; gap: 10px; width: min(560px, 92%); margin-top: 8px; }
+.hero-input .el-input { flex: 1; }
+.hero-input .el-button { height: 46px; padding: 0 28px; border-radius: 12px; }
 .chat-header {
   display: flex; align-items: center; gap: 12px; padding: 12px 20px;
   border-bottom: 1px solid #e5e7eb; background: #fff;
