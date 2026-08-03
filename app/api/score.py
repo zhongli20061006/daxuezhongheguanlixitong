@@ -20,6 +20,9 @@ from app.models import (
     Score, ScoreType, Schedule, Subject, Student, CourseSelection, Teacher,
 )
 from app.utils.gpa_calculator import score_to_gpa
+from app.services.score_service import (
+    DAILY_WEIGHT, FINAL_WEIGHT, auto_calculate_total_if_ready, record_score,
+)
 from app.schemas.score import (
     ManualScoreRequest, ManualScoreResponse,
     ImportScoreResponse,
@@ -27,11 +30,6 @@ from app.schemas.score import (
 )
 
 router = APIRouter(prefix="/scores", tags=["考核"])
-
-# 总评计算权重：平时占20%，期末占80%
-DAILY_WEIGHT = 0.2
-FINAL_WEIGHT = 0.8
-
 
 async def _get_teacher_id(db: AsyncSession, current_user: dict) -> int:
     """通过工号(job_number)查 teacher 表数字 id，用于校验课程归属"""
@@ -104,39 +102,16 @@ async def manual_score(
                 detail=f"学生 {entry.student_id} 未选此课程",
             )
 
-        # 计算绩点
-        gpa = score_to_gpa(entry.score)
-
-        # 查询是否已存在 → UPSERT
-        exist_result = await db.execute(
-            select(Score).where(
-                Score.student_id == entry.student_id,
-                Score.schedule_id == req.schedule_id,
-                Score.score_type == score_type,
-                Score.attempt == 1,
-            )
+        inserted_i, updated_i = await record_score(
+            db, schedule_id=req.schedule_id, student_id=entry.student_id,
+            score=entry.score, score_type=score_type,
         )
-        existing = exist_result.scalar_one_or_none()
-        if existing:
-            # UPDATE 已有记录
-            existing.score = entry.score
-            existing.gpa = float(gpa)
-            updated += 1
-        else:
-            # INSERT 新记录
-            db.add(Score(
-                student_id=entry.student_id,
-                schedule_id=req.schedule_id,
-                score=entry.score,
-                gpa=float(gpa),
-                score_type=score_type,
-                attempt=1,
-            ))
-            inserted += 1
+        inserted += inserted_i
+        updated += updated_i
 
     try:
         await db.flush()
-        calculated = await _auto_calculate_total_if_ready(req.schedule_id, db)
+        calculated = await auto_calculate_total_if_ready(db, req.schedule_id)
         await db.commit()
     except Exception:
         await db.rollback()
@@ -287,7 +262,7 @@ async def import_scores(
         await db.flush()
 
         # Step 9: 自动计算总评
-        calculated = await _auto_calculate_total_if_ready(schedule_id, db)
+        calculated = await auto_calculate_total_if_ready(db, schedule_id)
 
         await db.commit()
         return ImportScoreResponse(
@@ -324,7 +299,7 @@ async def calculate_total(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权操作该课程")
 
     try:
-        calculated = await _auto_calculate_total_if_ready(schedule_id, db)
+        calculated = await auto_calculate_total_if_ready(db, schedule_id)
         await db.commit()
         return {"message": f"计算完成", "calculated": calculated}
     except Exception:
@@ -453,74 +428,6 @@ async def student_scores(
         for sc, subj in result.all()
     ]
     return StudentScoresResponse(student_id=student_id, scores=scores)
-
-
-async def _auto_calculate_total_if_ready(schedule_id: int, db: AsyncSession) -> int:
-    """
-    检查该课表下是否所有学生都已有平时和期末成绩，是则自动计算总评
-    返回: 计算了总评的学生数
-    批量查询替代逐学生查询，N 个学生仅需 4 次 SQL
-    """
-    sel_result = await db.execute(
-        select(CourseSelection.student_id).where(
-            CourseSelection.schedule_id == schedule_id,
-            CourseSelection.status == 1,
-        )
-    )
-    enrolled_ids = [row[0] for row in sel_result.all()]
-    if not enrolled_ids:
-        return 0
-
-    # 批量获取平时成绩
-    daily_rows = await db.execute(
-        select(Score).where(
-            Score.schedule_id == schedule_id,
-            Score.student_id.in_(enrolled_ids),
-            Score.score_type == ScoreType.daily,
-            Score.attempt == 1,
-        )
-    )
-    daily_map = {s.student_id: s for s in daily_rows.scalars().all()}
-
-    # 批量获取期末成绩
-    final_rows = await db.execute(
-        select(Score).where(
-            Score.schedule_id == schedule_id,
-            Score.student_id.in_(enrolled_ids),
-            Score.score_type == ScoreType.final,
-            Score.attempt == 1,
-        )
-    )
-    final_map = {s.student_id: s for s in final_rows.scalars().all()}
-
-    # 批量获取已有总评
-    total_rows = await db.execute(
-        select(Score).where(
-            Score.schedule_id == schedule_id,
-            Score.student_id.in_(enrolled_ids),
-            Score.score_type == ScoreType.total,
-            Score.attempt == 1,
-        )
-    )
-    total_map = {s.student_id: s for s in total_rows.scalars().all()}
-
-    calculated = 0
-    for sid in enrolled_ids:
-        daily = daily_map.get(sid)
-        final = final_map.get(sid)
-        if daily and final:
-            total_gpa = round(float(daily.gpa) * DAILY_WEIGHT + float(final.gpa) * FINAL_WEIGHT, 1)
-            existing = total_map.get(sid)
-            if existing:
-                existing.gpa = total_gpa
-            else:
-                db.add(Score(
-                    student_id=sid, schedule_id=schedule_id, score=None,
-                    gpa=total_gpa, score_type=ScoreType.total, attempt=1,
-                ))
-            calculated += 1
-
-    return calculated
 
 
 async def _recalc_total(student_id: str, schedule_id: int, db: AsyncSession):
