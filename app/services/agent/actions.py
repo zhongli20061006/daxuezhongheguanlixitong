@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
     Classroom, ClassroomReservation, CourseCapacity, CourseSelection, Repair, RepairStatus,
-    RepairType, Schedule, Student, Subject, SystemConfig, Teacher,
+    RepairType, Schedule, Student, Subject, SubjectType, SystemConfig, Teacher,
 )
 from app.services.agent.confirmations import ConfirmationStore
 from app.services.agent.intent import Intent, IntentType, KNOWN_PAGES
@@ -127,9 +127,10 @@ class ActionExecutor:
     async def _handle_enroll(self, intent, user_id, role, session_id, db):
         from app.services.agent import AgentMessage
 
-        schedule_id = await self._resolve_schedule_id(intent.params.get("course", ""), user_id, db)
+        schedule_id, hint = await self._resolve_schedule(intent.params.get("course", ""), user_id, db)
         if schedule_id is None:
-            return [AgentMessage(kind="error", title="业务失败", content="没找到要选的课程，请说完整的课程名")]
+            content = f"没找到要选的课程。{hint}" if hint else "没找到要选的课程，请说完整的课程名"
+            return [AgentMessage(kind="error", title="业务失败", content=content)]
         ok, reason, info = await self._precheck_enroll(user_id, schedule_id, db)
         if not ok:
             return [AgentMessage(kind="error", title="业务失败", content=reason, data=info)]
@@ -141,9 +142,10 @@ class ActionExecutor:
     async def _handle_drop(self, intent, user_id, role, session_id, db):
         from app.services.agent import AgentMessage
 
-        schedule_id = await self._resolve_schedule_id(intent.params.get("course", ""), user_id, db)
+        schedule_id, hint = await self._resolve_schedule(intent.params.get("course", ""), user_id, db)
         if schedule_id is None:
-            return [AgentMessage(kind="error", title="业务失败", content="没找到要退的课程")]
+            content = f"没找到要退的课程。{hint}" if hint else "没找到要退的课程"
+            return [AgentMessage(kind="error", title="业务失败", content=content)]
         row = (await db.execute(
             select(CourseSelection, Schedule, Subject)
             .join(Schedule, CourseSelection.schedule_id == Schedule.id)
@@ -362,21 +364,69 @@ class ActionExecutor:
             )]
         return [AgentMessage(kind="error", content="未知的确认动作")]
 
-    async def _resolve_schedule_id(self, course: str, student_id: str, db) -> int | None:
+    async def _resolve_schedule(self, course: str, student_id: str, db) -> tuple[int | None, str]:
+        """把用户说的课程名（含简称/口语名）解析为课程序号，返回 (schedule_id, 提示)。
+        匹配失败或歧义时，提示给出候选课程，便于用户确认。"""
+        course = (course or "").strip()
         if course.isdigit():
-            return int(course)
+            sid = int(course)
+            row = (await db.execute(select(Schedule.id).where(Schedule.id == sid))).scalar_one_or_none()
+            return (sid, "") if row else (None, "课表记录不存在")
         stu = (await db.execute(select(Student).where(Student.id == student_id))).scalar_one_or_none()
         if not stu or not stu.class_id:
-            return None
+            return None, ""
         rows = (await db.execute(
-            select(Schedule.id, Subject.name)
+            select(Schedule.id, Subject.name, Subject.type)
             .join(Subject, Schedule.subject_id == Subject.id)
             .where(Schedule.class_id == stu.class_id)
         )).all()
-        for sid, name in rows:
-            if course in name:
-                return sid
-        return None
+        if not course:
+            return None, self._course_hint(rows)
+        scored: list[tuple[float, int, str]] = []
+        for sid, name, subj_type in rows:
+            score = self._course_score(course, name)
+            if score >= 2.0:
+                scored.append((score, sid, name))
+        if scored:
+            best = max(s for s, _, _ in scored)
+            top = [(sid, name) for s, sid, name in scored if s == best]
+            if len(top) == 1:
+                return top[0][0], ""
+            names = sorted({name for _, name in top})
+            return None, f"课程有多个匹配（{'、'.join(names)}），请说完整课程名"
+        return None, self._course_hint(rows)
+
+    @staticmethod
+    def _course_score(query: str, name: str) -> float:
+        """课程名贴合度：精确 > 双向包含 > 最长公共子串。"""
+        if not query:
+            return 0.0
+        if query == name or query.upper() == name.upper():
+            return 100.0
+        if query in name or name in query:
+            return 90.0
+        return float(ActionExecutor._lcs_len(query, name))
+
+    @staticmethod
+    def _lcs_len(a: str, b: str) -> int:
+        n, m = len(a), len(b)
+        dp = [[0] * (m + 1) for _ in range(n + 1)]
+        best = 0
+        for i in range(1, n + 1):
+            ai = a[i - 1]
+            for j in range(1, m + 1):
+                if ai == b[j - 1]:
+                    dp[i][j] = dp[i - 1][j - 1] + 1
+                    best = max(best, dp[i][j])
+        return best
+
+    @staticmethod
+    def _course_hint(rows) -> str:
+        """无可匹配课程时，列出该班级可选的限选/选修课。"""
+        names = sorted({name for _, name, subj_type in rows if subj_type != SubjectType.compulsory})
+        if not names:
+            return "该班级当前没有可选的限选/选修课程"
+        return "可选课程有：" + "、".join(names)
 
     @staticmethod
     def _norm_date(value: str) -> date | None:

@@ -352,3 +352,74 @@ async def test_reserve_classroom_already_reserved(db, test_engine):
     msgs = await executor.execute(intent, "S2024001", "student", "sess1", db)
     assert msgs[0].kind == "error"
     assert "已被其他人预约" in msgs[0].content
+
+
+async def _add_elective(db, subject_id: int, name: str, schedule_id: int, day: int, period: str):
+    """追加一门选修课及其课表/容量，供课程模糊匹配测试使用。"""
+    db.add(Subject(id=subject_id, name=name, credit=2.0, type=SubjectType.elective))
+    await db.flush()
+    db.add(Schedule(
+        id=schedule_id, teacher_id=1, subject_id=subject_id, class_id=1, classroom_id=1,
+        weeks="1-18", day_of_week=day, period=period, semester="2024-2025-1",
+    ))
+    db.add(CourseCapacity(schedule_id=schedule_id, enrolled=0, capacity=30))
+    await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_enroll_fuzzy_course_match(db, test_engine):
+    """"摄影课"应模糊匹配到选修课"摄影基础"，而不是报没有这门课。"""
+    await _seed(db, test_engine)
+    await _add_elective(db, 3, "摄影基础", 2, 1, "3-4")
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.enroll, params={"course": "摄影课"}, need_confirm=True),
+        "S2024001", "student", "sess1", db,
+    )
+    assert msgs[0].kind == "confirmation"
+    assert msgs[0].data["course"] == "摄影基础"
+
+
+@pytest.mark.asyncio
+async def test_enroll_substring_course_match(db, test_engine):
+    await _seed(db, test_engine)
+    await _add_elective(db, 3, "摄影基础", 2, 1, "3-4")
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.enroll, params={"course": "摄影"}, need_confirm=True),
+        "S2024001", "student", "sess1", db,
+    )
+    assert msgs[0].kind == "confirmation"
+    assert msgs[0].data["course"] == "摄影基础"
+
+
+@pytest.mark.asyncio
+async def test_enroll_ambiguous_course_match(db, test_engine):
+    """多个课程同样贴合时应提示歧义，而不是随意选一个。"""
+    await _seed(db, test_engine)
+    await _add_elective(db, 3, "摄影基础", 2, 1, "3-4")
+    await _add_elective(db, 4, "摄影鉴赏", 3, 2, "3-4")
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.enroll, params={"course": "摄影"}, need_confirm=True),
+        "S2024001", "student", "sess1", db,
+    )
+    assert msgs[0].kind == "error"
+    assert "多个匹配" in msgs[0].content
+    assert "摄影基础" in msgs[0].content
+    assert "摄影鉴赏" in msgs[0].content
+
+
+@pytest.mark.asyncio
+async def test_enroll_no_match_lists_selectable(db, test_engine):
+    """匹配不到时列出该班级可选的限选/选修课程。"""
+    await _seed(db, test_engine)
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.enroll, params={"course": "量子力学"}, need_confirm=True),
+        "S2024001", "student", "sess1", db,
+    )
+    assert msgs[0].kind == "error"
+    assert "可选课程有" in msgs[0].content
+    assert "人工智能实战" in msgs[0].content
+    assert "高等数学" not in msgs[0].content  # 必修课不出现在可选列表
