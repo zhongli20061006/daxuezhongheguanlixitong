@@ -241,7 +241,7 @@ cd student-management-frontend && npm run dev
 ## 自动化测试
 
 ```bash
-python -m pytest -q    # 当前 111 passed
+python -m pytest -q    # 当前 113 passed
 ```
 
 覆盖：认证、选课、课表、成绩、请假、审批、教室、报修、通知、培养方案、毕业审核、考试、管理，以及智能体模块（意图识别 / 动作执行 / 会话记忆 / 二次确认 / 种子数据 / 多意图降级等）。

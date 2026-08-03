@@ -37,7 +37,7 @@ async def create_plan(
             TrainingPlan.grade == req.grade,
         )
     )
-    if existing.scalar_one_or_none():
+    if existing.scalars().first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该专业年级的培养方案已存在")
 
     plan = TrainingPlan(
@@ -143,8 +143,9 @@ async def my_plan(
 
     plan_result = await db.execute(
         select(TrainingPlan).where(TrainingPlan.major == cls.major, TrainingPlan.grade == cls.grade)
+        .order_by(TrainingPlan.id)
     )
-    plan = plan_result.scalar_one_or_none()
+    plan = plan_result.scalars().first()
     if not plan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="未找到匹配的培养方案")
 
@@ -165,8 +166,9 @@ async def my_plan(
         select(PlanCourse, Subject).join(Subject, PlanCourse.subject_id == Subject.id)
         .where(PlanCourse.plan_id == plan.id)
     )
+    plan_rows = courses_result.all()
     courses = []
-    for pc, subj in courses_result:
+    for pc, subj in plan_rows:
         status = "已通过" if subj.id in passed else "未修"
         courses.append({
             "id": pc.id, "subject_id": subj.id, "subject_name": subj.name,
@@ -175,10 +177,11 @@ async def my_plan(
             "status": status, "gpa": passed.get(subj.id)
         })
 
-    total_earned = sum(float(subj.credit) for subj_id, gpa in passed.items()
-                       for pc, subj in courses_result if subj.id == subj_id)
-    elective_earned = sum(float(subj.credit) for subj_id, gpa in passed.items()
-                          for pc, subj in courses_result if subj.id == subj_id and pc.course_type == "elective")
+    total_earned = sum(float(pc.credit) for pc, subj in plan_rows if subj.id in passed)
+    elective_earned = sum(
+        float(pc.credit) for pc, subj in plan_rows
+        if subj.id in passed and pc.course_type == "elective"
+    )
 
     return {
         "plan": {
