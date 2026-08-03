@@ -8,6 +8,9 @@ from app.services.agent.intent import (
     is_param_fragment, match_rules,
 )
 from app.services.agent.llm import OllamaUnavailable
+from app.services.agent.prompts import (
+    BASE_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT, INTENT_SYSTEM_PROMPT, PLAN_SYSTEM_PROMPT,
+)
 
 
 class FakeLLM:
@@ -132,6 +135,18 @@ def test_extract_params_leave_mixed_relative_and_short():
     params = extract_params_for(IntentType.leave_apply, f"明天到{d2.month}.{d2.day}号")
     assert params["start_date"] == (date.today() + timedelta(days=1)).isoformat()
     assert params["end_date"] == d2.isoformat()
+
+
+def test_unified_prompts_contain_identity_and_rules():
+    assert "智伴校园" in BASE_SYSTEM_PROMPT
+    assert "绝不声称" in BASE_SYSTEM_PROMPT
+    assert "确认" in CHAT_SYSTEM_PROMPT
+    assert "意图解析员" in INTENT_SYSTEM_PROMPT
+    assert "学习规划师" in PLAN_SYSTEM_PROMPT
+    assert "approve_leave" in INTENT_SYSTEM_PROMPT
+    assert "query_scores" in INTENT_SYSTEM_PROMPT
+    assert "query_exams" in INTENT_SYSTEM_PROMPT
+    assert "query_notifications" in INTENT_SYSTEM_PROMPT
 
 
 def test_is_param_fragment():
