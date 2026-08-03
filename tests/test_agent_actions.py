@@ -28,6 +28,16 @@ class FakeLLM:
         raise OllamaUnavailable("down")  # 强制学习方案走模板降级
 
 
+class CapturingLLM(FakeLLM):
+    def __init__(self):
+        super().__init__()
+        self.captured = None
+
+    async def chat(self, messages):
+        self.captured = messages
+        return "模型回复"
+
+
 async def _cleanup(test_engine):
     """清空 agent 相关表，避免共享 sqlite 的跨用例残留。"""
     from sqlalchemy import delete as sa_delete
@@ -446,3 +456,16 @@ async def test_enroll_no_match_lists_selectable(db, test_engine):
     assert "可选课程有" in msgs[0].content
     assert "人工智能实战" in msgs[0].content
     assert "高等数学" not in msgs[0].content  # 必修课不出现在可选列表
+
+
+@pytest.mark.asyncio
+async def test_chat_prepends_system_prompt(db):
+    llm = CapturingLLM()
+    executor = ActionExecutor(llm, ConfirmationStore(), SessionStore())
+    await executor.execute(
+        Intent(intent=IntentType.chat), "S2024001", "student", "s1", db, raw_text="你好"
+    )
+    assert llm.captured[0]["role"] == "system"
+    assert "智伴校园" in llm.captured[0]["content"]
+    assert "确认卡片" in llm.captured[0]["content"]
+    assert llm.captured[-1] == {"role": "user", "content": "你好"}

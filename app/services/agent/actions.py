@@ -15,6 +15,7 @@ from app.models import (
 from app.services.agent.confirmations import ConfirmationStore
 from app.services.agent.intent import Intent, IntentType, KNOWN_PAGES
 from app.services.agent.llm import OllamaClient
+from app.services.agent.prompts import CHAT_SYSTEM_PROMPT, PLAN_SYSTEM_PROMPT
 from app.services.agent.session import SessionStore
 from app.utils.period_parser import is_period_overlap
 from app.utils.week_parser import is_week_matched
@@ -119,9 +120,11 @@ class ActionExecutor:
         from app.services.agent import AgentMessage
 
         context = self.sessions.build_context(user_id, session_id)
-        if not context or context[-1]["content"] != raw_text:
-            context.append({"role": "user", "content": raw_text or "你好"})
-        reply = await self.llm.chat(context)
+        messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
+        messages.extend(context)
+        if not messages or messages[-1]["content"] != raw_text:
+            messages.append({"role": "user", "content": raw_text or "你好"})
+        reply = await self.llm.chat(messages)
         return [AgentMessage(kind="text", content=reply)]
 
     async def _handle_enroll(self, intent, user_id, role, session_id, db):
@@ -676,7 +679,7 @@ class ActionExecutor:
         )
         try:
             data = await self.llm.extract_json([
-                {"role": "system", "content": "只输出 JSON，不要多余文字。"},
+                {"role": "system", "content": PLAN_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ])
             return json.dumps(data, ensure_ascii=False)
