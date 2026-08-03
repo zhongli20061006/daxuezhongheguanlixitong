@@ -71,5 +71,27 @@ PLAN_SYSTEM_PROMPT = BASE_SYSTEM_PROMPT + (
     '{"courses":[{"course":"高等数学","duration_minutes":120,"preview":"预习导数概念",'
     '"review":"复习极限与连续","priority":"高"},{"course":"大学英语","duration_minutes":120,'
     '"preview":"预习课文生词","review":"整理语法笔记","priority":"中"}],'
-    '"summary":"上午高数下午英语，晚上完成作业并回顾要点"}'
+    '"summary":"上午高数下午英语，晚上完成作业并回顾要点"}'  
 )
+
+TEACHER_INTENT_PROMPT = (
+    "教师角色额外支持的意图：\n"
+    "- query_class_schedule：查班级课表 params.class（班级名，如“2024级计算机科学1班”或“1班”）\n"
+    "- query_students：查学生名单 params.class/name/student_id（三选一）\n"
+    "- score_entry：录入成绩 params.student（姓名或学号）/course（课程名）/score（0-100 数字）"
+    "/score_type（平时或期末，默认期末）\n"
+    '示例1：用户说“查一下2024级计算机科学1班的课表”→'
+    '{"intents":[{"intent":"query_class_schedule","params":{"class":"2024级计算机科学1班"},"confidence":0.9}]}\n'
+    '示例2：用户说“把张三的高数成绩录成90分”→'
+    '{"intents":[{"intent":"score_entry","params":{"student":"张三","course":"高等数学","score":"90","score_type":"期末"},"confidence":0.9}]}\n'
+    '示例3：用户说“查一下5班有哪些学生”→'
+    '{"intents":[{"intent":"query_students","params":{"class":"5班"},"confidence":0.9}]}\n'
+)
+
+
+def intent_system_prompt(role: str = "student") -> str:
+    """按角色组装意图解析提示词；角色差异只影响提示，权限仍由执行层强制。"""
+    prompt = BASE_SYSTEM_PROMPT + "\n\n" + INTENT_TASK_PROMPT
+    if role == "teacher":
+        prompt += "\n\n" + TEACHER_INTENT_PROMPT
+    return prompt

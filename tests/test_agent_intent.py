@@ -280,3 +280,63 @@ async def test_resolver_rules_params_override_llm_hallucination():
     assert intents[0].params["start_date"] == tomorrow
     assert intents[0].params["end_date"] == tomorrow
     assert intents[0].params["reason"] == "感冒"
+
+
+def test_rules_query_class_schedule():
+    intent = match_rules("查一下2024级计算机科学1班的课表")
+    assert intent is not None
+    assert intent.intent == IntentType.query_class_schedule
+    assert "2024级计算机科学1班" in intent.params["class"]
+
+
+def test_rules_query_students():
+    intent = match_rules("查一下5班有哪些学生")
+    assert intent is not None
+    assert intent.intent == IntentType.query_students
+    assert intent.params["class"] == "5班"
+
+
+def test_rules_score_entry_beats_query_scores():
+    intent = match_rules("把张三的高数成绩录成90分")
+    assert intent is not None
+    assert intent.intent == IntentType.score_entry
+    assert intent.need_confirm is True
+    assert intent.params["score"] == "90"
+    assert intent.params["score_type"] == "期末"
+
+
+def test_rules_query_scores_still_works():
+    intent = match_rules("查一下张三的成绩")
+    assert intent is not None
+    assert intent.intent == IntentType.query_scores
+
+
+class CaptureLLM(FakeLLM):
+    def __init__(self):
+        super().__init__(result={"intents": [{"intent": "chat", "params": {}, "confidence": 0.3}]})
+        self.prompt = None
+
+    async def extract_json(self, messages):
+        self.calls += 1
+        self.prompt = messages[0]["content"]
+        return self.result
+
+
+@pytest.mark.asyncio
+async def test_resolve_prompt_is_role_aware():
+    resolver = IntentResolver(CaptureLLM())
+    await resolver.resolve("查一下5班的课表", role="teacher")
+    assert "query_class_schedule" in resolver.llm.prompt
+    assert "score_entry" in resolver.llm.prompt
+    await resolver.resolve("查一下5班的课表", role="student")
+    assert "query_class_schedule" not in resolver.llm.prompt
+    assert "score_entry" not in resolver.llm.prompt
+
+
+@pytest.mark.asyncio
+async def test_resolve_role_cache_key_isolated():
+    llm = CaptureLLM()
+    resolver = IntentResolver(llm)
+    await resolver.resolve("查一下5班的课表", role="teacher")
+    await resolver.resolve("查一下5班的课表", role="student")
+    assert llm.calls == 2

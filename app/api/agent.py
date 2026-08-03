@@ -168,7 +168,7 @@ async def agent_chat(
             session_store.add_message(user_id, session_id, "assistant", m.content or m.title, kind=m.kind)
         return {"session_id": session_id, "messages": outcome, "source": "plan_followup"}
     try:
-        intents, source = await resolver.resolve(req.message)
+        intents, source = await resolver.resolve(req.message, role)
     except Exception:
         logger.exception("intent resolution failed")
         intents, source = [], "fallback"

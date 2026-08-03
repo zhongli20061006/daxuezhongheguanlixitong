@@ -7,12 +7,14 @@ from enum import Enum
 from pydantic import BaseModel, Field, ValidationError
 
 from app.services.agent.llm import OllamaBusy, OllamaClient, OllamaTimeout, OllamaUnavailable
-from app.services.agent.prompts import INTENT_SYSTEM_PROMPT
+from app.services.agent.prompts import intent_system_prompt
 
 
 class IntentType(str, Enum):
     navigate = "navigate"
     query_schedule = "query_schedule"
+    query_class_schedule = "query_class_schedule"
+    query_students = "query_students"
     study_plan = "study_plan"
     enroll = "enroll"
     drop = "drop"
@@ -24,12 +26,14 @@ class IntentType(str, Enum):
     query_scores = "query_scores"
     query_notifications = "query_notifications"
     query_exams = "query_exams"
+    score_entry = "score_entry"
     chat = "chat"
 
 
 WRITE_INTENTS = frozenset({
     IntentType.enroll, IntentType.drop, IntentType.reserve_classroom,
     IntentType.repair_submit, IntentType.leave_apply, IntentType.approve_leave,
+    IntentType.score_entry,
 })
 
 
@@ -56,14 +60,17 @@ NAV_PHRASES = ("打开", "前往", "进入", "跳转", "页面", "去")
 
 RULE_TABLE: list[tuple[IntentType, list[str], str | None]] = [
     (IntentType.study_plan, ["学习方案", "学习计划", "怎么学", "复习计划"], None),
+    (IntentType.query_class_schedule, ["班级课表", "班的课表", "查班级课表"], None),
     (IntentType.query_schedule, ["上什么课", "课程安排", "课表"], None),
     (IntentType.query_classroom, ["空教室", "教室可用", "查教室"], None),
     (IntentType.query_exams, ["考试", "监考"], None),
+    (IntentType.score_entry, ["录成绩", "录入成绩", "成绩录", "打分", "录分"], None),
     (IntentType.query_scores, ["成绩", "绩点"], None),
     (IntentType.query_notifications, ["通知", "未读"], None),
     (IntentType.reserve_classroom, ["预约教室", "借教室", "订教室", "申请教室"], None),
     (IntentType.drop, ["退课", "退选", "不上了"], r"(?:退课|退选)\s*([^\s，。,.！!？?]+)"),
     (IntentType.enroll, ["选课", "选这门", "报名", "选修", "帮我选", "要选"], r"(?:选|报)(?:修|名)?\s*([^\s，。,.！!？?]+)"),
+    (IntentType.query_students, ["学生名单", "有哪些学生", "查学生"], None),
     (IntentType.repair_submit, ["报修", "修一下", "后勤", "东西坏了"], None),
     (IntentType.approve_leave, ["审批", "批准", "驳回", "同意请假"], None),
     (IntentType.leave_apply, ["请假", "休假申请"], None),
@@ -160,6 +167,12 @@ def extract_params_for(intent_type: "IntentType", text: str) -> dict[str, str]:
     """按意图类型抽取参数，供动作层/多轮补全复用。"""
     if intent_type == IntentType.query_classroom:
         return _extract_classroom_params(text)
+    if intent_type == IntentType.query_class_schedule:
+        return _extract_class_schedule_params(text)
+    if intent_type == IntentType.query_students:
+        return _extract_students_params(text)
+    if intent_type == IntentType.score_entry:
+        return _extract_score_params(text)
     if intent_type == IntentType.leave_apply:
         return _extract_leave_params(text)
     if intent_type == IntentType.repair_submit:
@@ -279,6 +292,42 @@ def _extract_approve_params(text: str) -> dict[str, str]:
     return params
 
 
+def _extract_class_schedule_params(text: str) -> dict[str, str]:
+    """规则兜底：抽取班级名（到"班"字为止，去掉前导动词）。"""
+    params: dict[str, str] = {}
+    cleaned = re.sub(r"^(?:请|帮我|给我|查一下|查|看看|看)", "", text.strip())
+    m = re.search(r"([\u4e00-\u9fa5A-Za-z0-9]{1,20}?班)", cleaned)
+    if m:
+        params["class"] = m.group(1).strip()
+    return params
+
+
+def _extract_students_params(text: str) -> dict[str, str]:
+    """规则兜底：抽取班级/学号（姓名由 LLM 或追问提供）。"""
+    params: dict[str, str] = {}
+    cleaned = re.sub(r"^(?:请|帮我|给我|查一下|查|看看|看)", "", text.strip())
+    m = re.search(r"([\u4e00-\u9fa5A-Za-z0-9]{1,20}?班)", cleaned)
+    if m:
+        params["class"] = m.group(1).strip()
+    m = re.search(r"([A-Z]\d{6,7})", text)
+    if m:
+        params["student_id"] = m.group(1)
+    return params
+
+
+def _extract_score_params(text: str) -> dict[str, str]:
+    """规则兜底：抽取分数与成绩类型（学生/课程由 LLM 或追问提供）。"""
+    params: dict[str, str] = {}
+    m = re.search(r"(\d{1,3}(?:\.\d+)?)\s*分", text)
+    if m:
+        params["score"] = m.group(1)
+    if "平时" in text:
+        params["score_type"] = "平时"
+    else:
+        params["score_type"] = "期末"
+    return params
+
+
 def match_rules(text: str) -> "Intent | None":
     """导航短语优先（跳转），其次动作规则表，最后裸页面词兜底跳转。"""
     lowered = text.strip()
@@ -294,6 +343,12 @@ def match_rules(text: str) -> "Intent | None":
                     params = _extract_leave_params(lowered)
                 elif intent == IntentType.query_classroom:
                     params = _extract_classroom_params(lowered)
+                elif intent == IntentType.query_class_schedule:
+                    params = _extract_class_schedule_params(lowered)
+                elif intent == IntentType.query_students:
+                    params = _extract_students_params(lowered)
+                elif intent == IntentType.score_entry:
+                    params = _extract_score_params(lowered)
                 elif intent == IntentType.repair_submit:
                     params = _extract_repair_params(lowered)
                 elif intent == IntentType.reserve_classroom:
@@ -318,16 +373,17 @@ class IntentResolver:
         self.cache_ttl = cache_ttl
         self._cache: dict[str, tuple[float, list[Intent]]] = {}
 
-    async def resolve(self, text: str) -> tuple[list[Intent], str]:
+    async def resolve(self, text: str, role: str = "student") -> tuple[list[Intent], str]:
         now = time.time()
-        cached = self._cache.get(text)
+        cache_key = (role, text)
+        cached = self._cache.get(cache_key)
         if cached and now - cached[0] <= self.cache_ttl:
             return cached[1], "cache"
 
         for _ in range(2):  # JSON 解析失败重试一次
             try:
                 data = await self.llm.extract_json([
-                    {"role": "system", "content": INTENT_SYSTEM_PROMPT},
+                    {"role": "system", "content": intent_system_prompt(role)},
                     {"role": "user", "content": text},
                 ])
                 intents = self._parse_llm(data)
@@ -336,7 +392,7 @@ class IntentResolver:
                     if all(i.intent == IntentType.chat for i in intents):
                         rule = match_rules(text)
                         if rule:
-                            self._put(text, [rule], now)
+                            self._put(cache_key, [rule], now)
                             return [rule], "rules"
                     # 写操作参数以规则抽取为准，避免模型幻觉日期/地点
                     for intent in intents:
@@ -344,7 +400,7 @@ class IntentResolver:
                             for key, value in extract_params_for(intent.intent, text).items():
                                 if value:
                                     intent.params[key] = value
-                    self._put(text, intents, now)
+                    self._put(cache_key, intents, now)
                     return intents, "llm"
             except (OllamaUnavailable, OllamaTimeout, OllamaBusy):
                 break  # 服务问题不重试
@@ -354,7 +410,7 @@ class IntentResolver:
         rule = match_rules(text)
         if rule:
             intents = [rule]
-            self._put(text, intents, now)
+            self._put(cache_key, intents, now)
             return intents, "rules"
         return [Intent(intent=IntentType.chat, confidence=0.3)], "fallback"
 
@@ -372,8 +428,8 @@ class IntentResolver:
             intents.append(intent)
         return intents
 
-    def _put(self, text: str, intents: list[Intent], now: float) -> None:
+    def _put(self, key: tuple[str, str], intents: list[Intent], now: float) -> None:
         if len(self._cache) >= self.cache_size:
             oldest = min(self._cache, key=lambda k: self._cache[k][0])
             self._cache.pop(oldest, None)
-        self._cache[text] = (now, intents)
+        self._cache[key] = (now, intents)
