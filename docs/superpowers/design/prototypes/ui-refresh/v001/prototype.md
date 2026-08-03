@@ -76,7 +76,7 @@
 
 ## 实施回写
 
-- 实际改动：`global.css` 令牌与 Element Plus 主题变量、AppNavbar 侧栏/顶栏渐变、Agent 对话气泡与确认卡片、登录页、Dashboard/ChangePassword/Profile/Schedule/Scores/Selection/MyExams/Notifications 的硬编码旧蓝统一换新。
+- 实际改动：`global.css` 令牌与 Element Plus 主题变量、AppNavbar 侧栏/顶栏渐变、Agent 对话气泡与确认卡片、登录页、Dashboard/ChangePassword/Profile/Schedule/Scores/Selection/MyExams/Notifications 的硬编码旧蓝统一换新；侧栏右缘加柔和投影过渡、主背景加品牌色微光渐变（用户反馈迭代）。
 - 验证：`npm run build` 通过（2026-08-03）；旧蓝扫描无残留。
 - `未验证`：各页面在浏览器中的实际渲染观感需用户刷新后人工确认（设计保真度验收）。
 

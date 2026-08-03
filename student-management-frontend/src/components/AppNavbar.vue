@@ -261,7 +261,11 @@ onUnmounted(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f5f7fa;
+  background:
+    radial-gradient(1100px 480px at 88% -8%, rgba(14,165,233,0.07), transparent 60%),
+    radial-gradient(900px 560px at -5% 105%, rgba(99,102,241,0.06), transparent 60%),
+    linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+  background-attachment: fixed;
 }
 
 /* ───── Header (48px) ───── */
@@ -357,6 +361,8 @@ onUnmounted(() => {
   overflow-x: hidden;
   flex-shrink: 0;
   position: relative;
+  border-right: 1px solid rgba(255,255,255,0.05);
+  box-shadow: 10px 0 26px -16px rgba(15, 23, 42, 0.5);
 }
 
 /* Subtle glow gradient at the top of the sidebar */
