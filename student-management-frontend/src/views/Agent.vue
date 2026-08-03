@@ -63,6 +63,23 @@
                 <el-table-column prop="classroom" label="教室" width="100" />
                 <el-table-column prop="teacher" label="老师" width="100" />
               </el-table>
+              <el-table v-else-if="m.data?.scores" :data="m.data.scores" size="small">
+                <el-table-column prop="course" label="课程" />
+                <el-table-column prop="score" label="分数" width="70" />
+                <el-table-column prop="gpa" label="绩点" width="70" />
+                <el-table-column prop="type" label="类型" width="80" />
+              </el-table>
+              <el-table v-else-if="m.data?.notifications" :data="m.data.notifications" size="small">
+                <el-table-column prop="title" label="标题" />
+                <el-table-column prop="content" label="内容" />
+              </el-table>
+              <el-table v-else-if="m.data?.exams" :data="m.data.exams" size="small">
+                <el-table-column prop="subject" label="科目" />
+                <el-table-column prop="date" label="日期" width="100" />
+                <el-table-column prop="time" label="时间" width="120" />
+                <el-table-column prop="classroom" label="教室" width="100" />
+                <el-table-column prop="seat" label="座位" width="70" />
+              </el-table>
               <pre v-else class="plain">{{ m.content }}</pre>
             </div>
           </el-card>
