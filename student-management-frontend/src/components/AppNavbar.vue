@@ -7,7 +7,7 @@
           <Fold v-if="!collapsed" />
           <Expand v-else />
         </el-icon>
-        <span class="header-title">大学生管理系统</span>
+        <span class="header-title">智伴校园</span>
       </div>
       <div class="header-right">
         <el-popover placement="bottom" :width="360" trigger="click">

@@ -7,7 +7,7 @@
       <div class="brand-dot dot-3"></div>
       <div class="brand-content">
         <div class="brand-logo">🎓</div>
-        <h1 class="brand-title">大学生管理系统</h1>
+        <h1 class="brand-title">智伴校园</h1>
         <p class="brand-subtitle">统一的校园服务入口</p>
       </div>
     </div>
@@ -30,7 +30,7 @@
           </el-form-item>
         </el-form>
         <p class="forgot-pwd" @click="forgetPwd">忘记密码？</p>
-        <p class="login-footer">© 2024 大学生管理系统</p>
+        <p class="login-footer">© 2024 智伴校园</p>
       </div>
     </div>
   </div>
