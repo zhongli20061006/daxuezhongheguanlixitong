@@ -43,6 +43,41 @@ def test_rules_drop_beats_enroll():
     assert intent.need_confirm is True
 
 
+def test_rules_leave_apply_extracts_params():
+    intent = match_rules("我要请假 2026-08-05 到 2026-08-06 因为感冒")
+    assert intent.intent == IntentType.leave_apply
+    assert intent.need_confirm is True
+    assert intent.params["start_date"] == "2026-08-05"
+    assert intent.params["end_date"] == "2026-08-06"
+    assert intent.params["reason"] == "感冒"
+
+
+def test_rules_repair_submit_extracts_params():
+    intent = match_rules("我要报修，地点D101，投影仪坏了，类型电子产品")
+    assert intent.intent == IntentType.repair_submit
+    assert intent.need_confirm is True
+    assert intent.params["location"] == "D101"
+    assert intent.params["type"] == "电子产品"
+    assert intent.params["description"] == "投影仪"
+
+
+def test_rules_reserve_classroom_extracts_params():
+    intent = match_rules("帮我预约教室D101，第3周周五1-2节，用于班会")
+    assert intent.intent == IntentType.reserve_classroom
+    assert intent.need_confirm is True
+    assert intent.params["classroom"] == "D101"
+    assert intent.params["week"] == "3"
+    assert intent.params["day_of_week"] == "5"
+    assert intent.params["period"] == "1-2"
+    assert intent.params["reason"] == "班会"
+
+
+def test_rules_reserve_classroom_not_navigate():
+    """写操作关键词优先于裸页面词，避免"预约教室"被误判为跳转。"""
+    intent = match_rules("预约教室D101")
+    assert intent.intent == IntentType.reserve_classroom
+
+
 @pytest.mark.asyncio
 async def test_resolver_llm_first():
     llm = FakeLLM(result={"intents": [{"intent": "study_plan", "params": {}, "confidence": 0.9}]})

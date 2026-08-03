@@ -69,10 +69,7 @@
           <el-card v-else-if="m.kind === 'confirmation'" class="msg-card confirm-card">
             <template #header>{{ m.title }}</template>
             <p>{{ m.content }}</p>
-            <p v-if="m.data" class="confirm-info">
-              {{ m.data.course }}｜{{ m.data.day }} {{ m.data.period }}节｜{{ m.data.classroom }}
-              ｜余量 {{ m.data.enrolled }}/{{ m.data.capacity }}
-            </p>
+            <p v-if="m.data" class="confirm-info">{{ confirmInfo(m) }}</p>
             <div v-if="m.confirm_token" class="confirm-actions">
               <el-button type="primary" :disabled="store.sending" @click="store.confirm(m.confirm_token)">
                 确认执行
@@ -144,6 +141,24 @@ function priorityType(p) {
   if (p === '高') return 'danger'
   if (p === '中') return 'warning'
   return 'info'
+}
+
+function confirmInfo(m) {
+  const d = m.data || {}
+  const weekday = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  const parts = []
+  if (d.course) parts.push(d.course)
+  if (d.day_of_week) parts.push(`${weekday[d.day_of_week - 1] || ''} ${d.period || ''}节`.trim())
+  else if (d.day) parts.push(d.period ? `${d.day} ${d.period}节` : d.day)
+  if (d.classroom) parts.push(d.classroom)
+  if (d.week) parts.push(`第${d.week}周`)
+  if (d.enrolled !== undefined && d.capacity !== undefined) parts.push(`余量 ${d.enrolled}/${d.capacity}`)
+  if (d.start_date && d.end_date) parts.push(`${d.start_date} 至 ${d.end_date}（共 ${d.total_days} 天）`)
+  if (d.location) parts.push(d.location)
+  if (d.type) parts.push(d.type)
+  if (d.description) parts.push(d.description)
+  if (d.reason) parts.push(`原因：${d.reason}`)
+  return parts.join('｜')
 }
 
 function sendText(text) {

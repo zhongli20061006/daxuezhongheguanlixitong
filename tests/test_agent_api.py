@@ -1,9 +1,13 @@
 """智能体 API：chat、confirm、status、sessions。"""
+from datetime import date, timedelta
+
 import pytest
+from sqlalchemy import select
 
 from app.models import (
-    Classroom, CourseCapacity, Schedule, Student, StudentClass, Subject, SubjectType,
-    SystemConfig, Teacher,
+    ApprovalConfig, ApprovalRecord, Classroom, ClassroomReservation, CourseCapacity,
+    CourseSelection, LeaveApplication, Notification, NotificationUser, Repair, Schedule,
+    Student, StudentClass, Subject, SubjectType, SystemConfig, Teacher,
 )
 from app.services.agent.actions import _tomorrow_weekday
 from app.services.agent.llm import OllamaUnavailable
@@ -34,12 +38,13 @@ class FakeMultiLLM(FakeLLM):
 async def _cleanup(test_engine):
     from sqlalchemy import delete as sa_delete
 
-    from app.models import (
-        Classroom, CourseCapacity, CourseSelection, Schedule, Student, StudentClass,
-        Subject, SystemConfig, Teacher,
-    )
     async with test_engine.begin() as conn:
-        for model in (CourseSelection, CourseCapacity, Schedule, SystemConfig, Student, Classroom, Subject, Teacher, StudentClass):
+        for model in (
+            NotificationUser, Notification, ApprovalRecord, LeaveApplication,
+            ClassroomReservation, Repair, ApprovalConfig,
+            CourseSelection, CourseCapacity, Schedule, SystemConfig,
+            Student, Classroom, Subject, Teacher, StudentClass,
+        ):
             await conn.execute(sa_delete(model))
 
 
@@ -194,3 +199,65 @@ async def test_role_id_identity_when_username_differs(client, db, test_engine, m
         assert "confirmation" in kinds
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_chat_leave_confirmation_and_confirm(client, db, test_engine, auth_override, fake_llm):
+    """规则兜底下：请假意图参数抽取 → 确认卡片 → 确认后真实创建请假单。"""
+    await _seed_agent_data(db, test_engine)
+    start = date.today() + timedelta(days=2)
+    msg = f"我要请假 {start.isoformat()} 到 {(start + timedelta(days=1)).isoformat()} 因为感冒"
+    resp = await client.post("/agent/chat", json={"message": msg})
+    assert resp.status_code == 200
+    data = resp.json()
+    kinds = [m["kind"] for m in data["messages"]]
+    assert "confirmation" in kinds
+    token = next(m["confirm_token"] for m in data["messages"] if m["kind"] == "confirmation")
+    resp2 = await client.post("/agent/confirm", json={"token": token})
+    assert resp2.status_code == 200
+    assert resp2.json()["messages"][0]["kind"] == "card"
+    leaves = (await db.execute(select(LeaveApplication))).scalars().all()
+    assert len(leaves) == 1
+    assert leaves[0].student_id == "S2024001"
+
+
+@pytest.mark.asyncio
+async def test_chat_repair_confirmation_and_confirm(client, db, test_engine, auth_override, fake_llm):
+    """规则兜底下：报修意图参数抽取 → 确认卡片 → 确认后真实创建报修单。"""
+    await _seed_agent_data(db, test_engine)
+    resp = await client.post("/agent/chat", json={
+        "message": "我要报修，地点D101，投影仪坏了，类型电子产品",
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    kinds = [m["kind"] for m in data["messages"]]
+    assert "confirmation" in kinds
+    token = next(m["confirm_token"] for m in data["messages"] if m["kind"] == "confirmation")
+    resp2 = await client.post("/agent/confirm", json={"token": token})
+    assert resp2.status_code == 200
+    assert resp2.json()["messages"][0]["kind"] == "card"
+    repairs = (await db.execute(select(Repair))).scalars().all()
+    assert len(repairs) == 1
+    assert repairs[0].location == "D101"
+    assert repairs[0].type == "电子产品"
+
+
+@pytest.mark.asyncio
+async def test_chat_reserve_confirmation_and_confirm(client, db, test_engine, auth_override, fake_llm):
+    """规则兜底下：预约教室意图参数抽取 → 确认卡片 → 确认后真实创建预约。"""
+    await _seed_agent_data(db, test_engine)
+    resp = await client.post("/agent/chat", json={
+        "message": "帮我预约教室D101，第1周周一3-4节，用于班会",
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    kinds = [m["kind"] for m in data["messages"]]
+    assert "confirmation" in kinds
+    token = next(m["confirm_token"] for m in data["messages"] if m["kind"] == "confirmation")
+    resp2 = await client.post("/agent/confirm", json={"token": token})
+    assert resp2.status_code == 200
+    assert resp2.json()["messages"][0]["kind"] == "card"
+    reservations = (await db.execute(select(ClassroomReservation))).scalars().all()
+    assert len(reservations) == 1
+    assert reservations[0].classroom_id == 1
+    assert reservations[0].week == 1

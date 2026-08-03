@@ -153,6 +153,9 @@ cd student-management-frontend && npm run dev
 | 帮我选人工智能实战 | 预检通过后弹出确认卡片，二次确认后才真正选课 |
 | 退掉人工智能实战 | 同样需要二次确认 |
 | 查一下空教室 | 跳转教室查询页面 |
+| 帮我预约教室D101，第3周周五1-2节 | 预检（课程占用/重复预约）后弹出确认卡片，确认后写入预约 |
+| 我要报修，地点D101，投影仪坏了 | 填写地点/类型/描述，二次确认后生成报修单 |
+| 我要请假 2026-08-05 到 2026-08-06 因为感冒 | 校验日期后二次确认，提交后进入辅导员/学院审批流 |
 
 **架构**
 
@@ -167,12 +170,12 @@ cd student-management-frontend && npm run dev
 | 接口 | 说明 |
 |------|------|
 | POST /agent/chat | 发送消息（返回意图来源 llm / rules / fallback） |
-| POST /agent/confirm | 确认写操作（选课 / 退课等） |
+| POST /agent/confirm | 确认写操作（选课 / 退课 / 请假 / 报修 / 教室预约） |
 | GET /agent/status | Ollama 在线状态 + 熔断状态 |
 | GET /agent/sessions | 会话列表 |
 | GET / DELETE /agent/sessions/{id} | 会话历史 / 删除会话 |
 
-**当前状态**：跳转、查课表、学习方案、选课、退课、查教室已可用；**请假、报修、教室预约** 目前为页面跳转占位，接入业务 API 进行中。
+**当前状态**：跳转、查课表、学习方案、选课、退课、查教室、**请假、报修、教室预约** 已全部接入真实业务 API（含预检与二次确认）。
 
 ## 本地 Ollama 部署（智能体依赖）
 
@@ -200,7 +203,7 @@ cd student-management-frontend && npm run dev
 
 | 模块 | 接口 | 状态 |
 |------|------|------|
-| 智能体 | /agent/chat, /agent/confirm, /agent/status, /agent/sessions | ✅（请假/报修/教室预约待接入） |
+| 智能体 | /agent/chat, /agent/confirm, /agent/status, /agent/sessions | ✅ |
 | 认证 | /auth/login, /auth/change-password | ✅ |
 | 选课 | /selection/enroll, /selection/drop, /selection/my-courses, /selection/available-courses | ✅ |
 | 课表 | /schedule/my, /schedule/class/{id} + CRUD | ✅ |
@@ -229,7 +232,7 @@ cd student-management-frontend && npm run dev
 ## 自动化测试
 
 ```bash
-python -m pytest -q    # 当前 46 passed
+python -m pytest -q    # 当前 62 passed
 ```
 
 覆盖：认证、选课、课表、成绩、请假、审批、教室、报修、通知、培养方案、毕业审核、考试、管理，以及智能体模块（意图识别 / 动作执行 / 会话记忆 / 二次确认 / 种子数据 / 多意图降级等）。

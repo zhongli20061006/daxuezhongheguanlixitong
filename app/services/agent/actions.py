@@ -1,25 +1,35 @@
 """动作执行器：权限复核 → 数据拉取 → 上下文组装 → 写操作预检与确认执行。"""
 import json
 import logging
+import re
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
-    Classroom, CourseCapacity, CourseSelection, Schedule, Student, Subject, SystemConfig, Teacher,
+    Classroom, ClassroomReservation, CourseCapacity, CourseSelection, Repair, RepairStatus,
+    RepairType, Schedule, Student, Subject, SystemConfig, Teacher,
 )
 from app.services.agent.confirmations import ConfirmationStore
 from app.services.agent.intent import Intent, IntentType
 from app.services.agent.llm import OllamaClient
 from app.services.agent.session import SessionStore
+from app.utils.period_parser import is_period_overlap
+from app.utils.week_parser import is_week_matched
 
 logger = logging.getLogger("student_management")
 
 WEEKDAY_CN = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
-STUDENT_ONLY = frozenset({IntentType.query_schedule, IntentType.study_plan, IntentType.enroll, IntentType.drop})
+STUDENT_ONLY = frozenset({
+    IntentType.query_schedule, IntentType.study_plan, IntentType.enroll, IntentType.drop,
+    IntentType.leave_apply,
+})
 NOT_FOR_ADMIN = frozenset({IntentType.reserve_classroom, IntentType.repair_submit, IntentType.leave_apply})
+
+REPAIR_TYPES = frozenset(t.value for t in RepairType)
 
 KNOWN_PAGES = frozenset({
     "/", "/dashboard", "/schedule", "/selection", "/scores", "/scores/input",
@@ -166,22 +176,50 @@ class ActionExecutor:
     async def _handle_reserve_classroom(self, intent, user_id, role, session_id, db):
         from app.services.agent import AgentMessage
 
+        ok, reason, info = await self._precheck_reserve(intent.params, db)
+        if not ok:
+            return [AgentMessage(kind="error", title="业务失败", content=reason, data=info)]
+        token = self.confirmations.create(user_id, {
+            "action": "reserve_classroom", "classroom_id": info["classroom_id"],
+            "week": info["week"], "day_of_week": info["day_of_week"], "period": info["period"],
+            "reason": info["reason"], "role": role, "user_id": user_id, "session_id": session_id,
+        })
         return [AgentMessage(
-            kind="card", title="教室预约", content="教室预约功能下一期接入，先为你打开教室页面", navigation="/classrooms",
+            kind="confirmation", title="确认预约教室",
+            content=f"{info['classroom']}｜第{info['week']}周 {WEEKDAY_CN[info['day_of_week'] - 1]} {info['period']}节",
+            data=info, confirm_token=token,
         )]
 
     async def _handle_repair_submit(self, intent, user_id, role, session_id, db):
         from app.services.agent import AgentMessage
 
+        ok, reason, info = self._precheck_repair(intent.params)
+        if not ok:
+            return [AgentMessage(kind="error", title="业务失败", content=reason, data=info)]
+        token = self.confirmations.create(user_id, {
+            "action": "repair_submit", "location": info["location"], "type": info["type"],
+            "description": info["description"], "role": role, "user_id": user_id, "session_id": session_id,
+        })
         return [AgentMessage(
-            kind="card", title="报修", content="报修功能下一期接入，先为你打开报修页面", navigation="/repairs",
+            kind="confirmation", title="确认报修",
+            content=f"{info['location']}｜{info['type']}：{info['description']}",
+            data=info, confirm_token=token,
         )]
 
     async def _handle_leave_apply(self, intent, user_id, role, session_id, db):
         from app.services.agent import AgentMessage
 
+        ok, reason, info = self._precheck_leave(intent.params)
+        if not ok:
+            return [AgentMessage(kind="error", title="业务失败", content=reason, data=info)]
+        token = self.confirmations.create(user_id, {
+            "action": "leave_apply", "start_date": info["start_date"], "end_date": info["end_date"],
+            "reason": info["reason"], "user_id": user_id, "session_id": session_id,
+        })
         return [AgentMessage(
-            kind="card", title="请假", content="请假功能下一期接入，先为你打开请假页面", navigation="/leaves",
+            kind="confirmation", title="确认请假",
+            content=f"{info['start_date']} 至 {info['end_date']}，共 {info['total_days']} 天",
+            data=info, confirm_token=token,
         )]
 
     async def execute_confirm(self, payload: dict, db: AsyncSession) -> list:
@@ -234,6 +272,91 @@ class ActionExecutor:
                 return [AgentMessage(kind="error", title="系统异常", content="退课失败，请稍后重试")]
             self.sessions.add_fact(user_id, session_id, f"已退课：{schedule_id}")
             return [AgentMessage(kind="card", title="退课成功", content="退课成功")]
+        if action == "leave_apply":
+            ok, reason, info = self._precheck_leave(payload)
+            if not ok:
+                return [AgentMessage(kind="error", title="业务失败", content=reason, data=info)]
+            try:
+                from app.services.leave_service import leave_service
+
+                leave = await leave_service.apply(
+                    db, user_id, info["start_date"], info["end_date"], info["reason"]
+                )
+            except ValueError as exc:
+                await db.rollback()
+                return [AgentMessage(kind="error", title="业务失败", content=str(exc))]
+            except Exception:
+                await db.rollback()
+                logger.exception("agent leave apply failed")
+                return [AgentMessage(kind="error", title="系统异常", content="请假提交失败，请稍后重试")]
+            self.sessions.add_fact(
+                user_id, session_id,
+                f"已提交请假：{info['start_date']} 至 {info['end_date']}（{info['total_days']}天）",
+            )
+            return [AgentMessage(
+                kind="card", title="请假申请已提交",
+                content=f"请假申请 #{leave.id} 已提交，共 {info['total_days']} 天，等待审批",
+                data={**info, "leave_id": leave.id},
+            )]
+        if action == "repair_submit":
+            ok, reason, info = self._precheck_repair(payload)
+            if not ok:
+                return [AgentMessage(kind="error", title="业务失败", content=reason, data=info)]
+            try:
+                repair = Repair(
+                    user_id=user_id, role=payload.get("role") or "student",
+                    location=info["location"], type=info["type"], description=info["description"],
+                    status=RepairStatus.submitted.value,
+                )
+                db.add(repair)
+                await db.commit()
+                await db.refresh(repair)
+            except Exception:
+                await db.rollback()
+                logger.exception("agent repair submit failed")
+                return [AgentMessage(kind="error", title="系统异常", content="报修提交失败，请稍后重试")]
+            self.sessions.add_fact(user_id, session_id, f"已提交报修：{info['location']}（{info['type']}）")
+            return [AgentMessage(
+                kind="card", title="报修提交成功",
+                content=f"报修单 #{repair.id} 已提交：{info['location']}｜{info['type']}",
+                data={**info, "repair_id": repair.id},
+            )]
+        if action == "reserve_classroom":
+            params = {
+                "classroom": str(payload["classroom_id"]), "week": str(payload["week"]),
+                "day_of_week": str(payload["day_of_week"]), "period": payload["period"],
+                "reason": payload["reason"],
+            }
+            ok, reason, info = await self._precheck_reserve(params, db)
+            if not ok:
+                return [AgentMessage(kind="error", title="业务失败", content=reason, data=info)]
+            try:
+                reservation = ClassroomReservation(
+                    classroom_id=info["classroom_id"], week=info["week"], day_of_week=info["day_of_week"],
+                    period=info["period"], user_id=user_id, user_role=payload.get("role") or "student",
+                    reason=info["reason"], status="已预约",
+                )
+                db.add(reservation)
+                await db.commit()
+                await db.refresh(reservation)
+            except IntegrityError:
+                await db.rollback()
+                return [AgentMessage(kind="error", title="业务失败", content="该时段已被其他人预约")]
+            except Exception:
+                await db.rollback()
+                logger.exception("agent reserve classroom failed")
+                return [AgentMessage(kind="error", title="系统异常", content="预约失败，请稍后重试")]
+            self.sessions.add_fact(
+                user_id, session_id,
+                f"已预约教室：{info['classroom']}（第{info['week']}周 "
+                f"{WEEKDAY_CN[info['day_of_week'] - 1]} {info['period']}节）",
+            )
+            return [AgentMessage(
+                kind="card", title="预约成功",
+                content=f"已预约 {info['classroom']}：第{info['week']}周 "
+                        f"{WEEKDAY_CN[info['day_of_week'] - 1]} {info['period']}节",
+                data=info,
+            )]
         return [AgentMessage(kind="error", content="未知的确认动作")]
 
     async def _resolve_schedule_id(self, course: str, student_id: str, db) -> int | None:
@@ -251,6 +374,119 @@ class ActionExecutor:
             if course in name:
                 return sid
         return None
+
+    @staticmethod
+    def _norm_date(value: str) -> date | None:
+        if not value:
+            return None
+        try:
+            return date.fromisoformat(value.strip())
+        except ValueError:
+            pass
+        m = re.match(r"(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})日?", value.strip())
+        if m:
+            try:
+                return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            except ValueError:
+                return None
+        return None
+
+    def _precheck_leave(self, params: dict) -> tuple[bool, str, dict]:
+        start = self._norm_date(params.get("start_date", ""))
+        end = self._norm_date(params.get("end_date", ""))
+        reason = (params.get("reason") or "").strip()
+        if not start or not end:
+            return False, "请告诉我请假的开始和结束日期（格式：2026-08-05）", {}
+        if end < start:
+            return False, "结束日期不能早于开始日期", {}
+        if start < date.today():
+            return False, "请假开始日期不能早于今天", {}
+        if not reason:
+            return False, "请补充请假原因", {}
+        info = {
+            "start_date": start.isoformat(), "end_date": end.isoformat(),
+            "total_days": (end - start).days + 1, "reason": reason,
+        }
+        return True, "预检通过，确认后提交请假申请（按天数进入辅导员/学院审批）", info
+
+    def _precheck_repair(self, params: dict) -> tuple[bool, str, dict]:
+        location = (params.get("location") or "").strip()
+        rtype = (params.get("type") or "").strip()
+        description = (params.get("description") or "").strip()
+        if not location:
+            return False, "请告诉我报修地点", {}
+        if rtype not in REPAIR_TYPES:
+            return False, f"报修类型需为：{' / '.join(sorted(REPAIR_TYPES))}", {}
+        if not description:
+            return False, "请描述具体问题", {}
+        info = {"location": location, "type": rtype, "description": description}
+        return True, "预检通过，确认后提交报修单", info
+
+    async def _resolve_classroom(self, classroom: str, db) -> Classroom | None:
+        classroom = (classroom or "").strip()
+        if not classroom:
+            return None
+        if classroom.isdigit():
+            return (await db.execute(
+                select(Classroom).where(Classroom.id == int(classroom))
+            )).scalar_one_or_none()
+        rows = (await db.execute(
+            select(Classroom).where(Classroom.name.contains(classroom))
+        )).scalars().all()
+        for row in rows:
+            if row.name.upper() == classroom.upper():
+                return row
+        return rows[0] if len(rows) == 1 else None
+
+    async def _precheck_reserve(self, params: dict, db) -> tuple[bool, str, dict]:
+        classroom = await self._resolve_classroom(params.get("classroom", ""), db)
+        if classroom is None:
+            return False, "没找到要预约的教室，请提供教室名（如 D101）或教室 ID", {}
+        try:
+            week = int(params.get("week", ""))
+            day = int(params.get("day_of_week", ""))
+        except (TypeError, ValueError):
+            return False, "请提供预约周次（1-52）和星期（1-7）", {}
+        period = (params.get("period") or "").strip().replace("节", "").strip()
+        reason = (params.get("reason") or "").strip()
+        if not (1 <= week <= 52 and 1 <= day <= 7):
+            return False, "周次需在 1-52，星期需在 1-7", {}
+        if not period:
+            return False, "请提供预约节次（如 1-2）", {}
+        try:
+            p1, p2 = period.split("-")
+            p1, p2 = int(p1), int(p2)
+            if not (1 <= p1 <= 12 and 1 <= p2 <= 12) or p1 > p2:
+                return False, "节次需在 1-12 之间且起止有序", {}
+        except ValueError:
+            return False, f"节次格式不正确：{period}", {}
+        if not reason:
+            return False, "请补充预约理由", {}
+        rows = (await db.execute(
+            select(Schedule, Subject)
+            .join(Subject, Schedule.subject_id == Subject.id)
+            .where(Schedule.classroom_id == classroom.id, Schedule.day_of_week == day)
+        )).all()
+        for s, subj in rows:
+            if is_week_matched(week, s.weeks) and is_period_overlap(period, s.period):
+                return False, f"该时段有课程安排：{subj.name}（{WEEKDAY_CN[day - 1]} {s.period}节）", {}
+        dup = (await db.execute(
+            select(ClassroomReservation).where(
+                ClassroomReservation.classroom_id == classroom.id,
+                ClassroomReservation.week == week,
+                ClassroomReservation.day_of_week == day,
+                ClassroomReservation.period == period,
+                ClassroomReservation.status == "已预约",
+            )
+        )).scalar_one_or_none()
+        if dup:
+            return False, "该时段已被其他人预约", {}
+        info = {
+            "classroom": classroom.name, "classroom_id": classroom.id,
+            "building": classroom.building, "capacity": classroom.capacity,
+            "week": week, "day_of_week": day, "period": period, "reason": reason,
+        }
+        return True, "预检通过，确认后提交预约", info
 
     async def _selection_window(self, db) -> tuple[bool, str]:
         configs = {
