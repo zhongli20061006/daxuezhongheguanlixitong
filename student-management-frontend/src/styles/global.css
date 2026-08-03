@@ -4,13 +4,16 @@
 
 :root {
   /* ── Brand Colors ── */
-  --color-primary: #2563EB;
-  --color-primary-light: #3B82F6;
-  --color-primary-dark: #1D4ED8;
-  --color-primary-bg: #EFF6FF;
+  --color-primary: #0EA5E9;
+  --color-primary-light: #38BDF8;
+  --color-primary-dark: #0284C7;
+  --color-primary-bg: #F0F9FF;
+  --color-accent: #F97316;
+  --color-accent-bg: #FFF7ED;
+  --gradient-accent: linear-gradient(135deg, #0EA5E9 0%, #6366F1 55%, #8B5CF6 100%);
 
   --color-success: #059669;
-  --color-success-light: #10B981;
+  --color-success-light: #34D399;
   --color-success-bg: #ECFDF5;
 
   --color-warning: #D97706;
@@ -25,8 +28,8 @@
   --color-info-bg: #EEF2FF;
 
   /* ── Neutral Palette ── */
-  --color-bg: #F0F2F5;
-  --color-bg-alt: #F8FAFC;
+  --color-bg: #F8FAFC;
+  --color-bg-alt: #F1F5F9;
   --color-surface: #FFFFFF;
   --color-border: #E5E7EB;
   --color-border-light: #F3F4F6;
@@ -38,25 +41,25 @@
   --color-text-inverse: #FFFFFF;
 
   /* ── Sidebar / Header ── */
-  --color-sidebar-bg: #0F172A;
+  --color-sidebar-bg: linear-gradient(180deg, #0F172A 0%, #1E1B4B 55%, #4C1D95 160%);
   --color-sidebar-hover: rgba(255,255,255,0.08);
-  --color-sidebar-active: rgba(37, 99, 235, 0.25);
-  --color-header-bg: linear-gradient(135deg, #0F172A 0%, #1E3A5F 50%, #1E40AF 100%);
+  --color-sidebar-active: rgba(14, 165, 233, 0.28);
+  --color-header-bg: linear-gradient(135deg, #0F172A 0%, #155E75 50%, #4C1D95 100%);
 
   /* ── Shadow Levels ── */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.06), 0 4px 6px rgba(0, 0, 0, 0.03);
-  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.08), 0 8px 10px rgba(0, 0, 0, 0.03);
-  --shadow-card-hover: 0 8px 25px rgba(0, 0, 0, 0.1);
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
+  --shadow-md: 0 4px 10px rgba(15, 23, 42, 0.05), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 12px 24px rgba(15, 23, 42, 0.07), 0 4px 8px rgba(15, 23, 42, 0.04);
+  --shadow-xl: 0 24px 40px rgba(15, 23, 42, 0.09), 0 8px 16px rgba(15, 23, 42, 0.05);
+  --shadow-card-hover: 0 12px 28px rgba(15, 23, 42, 0.10);
 
   /* ── Border Radius ── */
   --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
 
   /* ── Spacing Scale ── */
@@ -71,6 +74,16 @@
   --transition-fast: 150ms ease;
   --transition-base: 250ms ease;
   --transition-slow: 350ms ease;
+
+  /* ── Element Plus 主题跟随 ── */
+  --el-color-primary: #0EA5E9;
+  --el-color-primary-light-3: #38BDF8;
+  --el-color-primary-light-5: #7DD3FC;
+  --el-color-primary-light-7: #BAE6FD;
+  --el-color-primary-light-8: #E0F2FE;
+  --el-color-primary-light-9: #F0F9FF;
+  --el-color-primary-dark-2: #0284C7;
+  --el-border-radius-base: 8px;
 }
 
 /* ================================================================
@@ -302,10 +315,10 @@ a:hover {
 }
 
 .el-button--primary {
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
 }
 .el-button--primary:hover {
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);
 }
 
 .el-button--success {

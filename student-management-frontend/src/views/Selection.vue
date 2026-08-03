@@ -33,7 +33,7 @@
               </div>
               <div class="card-row3"><span>📅 {{ c.weeks }}周</span></div>
               <div class="card-row4">
-                <el-progress :percentage="capacityPct(c)" :stroke-width="6" :color="c.enrolled >= c.capacity ? '#DC2626' : '#2563EB'" style="flex:1;margin-right:12px" />
+<el-progress :percentage="capacityPct(c)" :stroke-width="6" :color="c.enrolled >= c.capacity ? '#DC2626' : '#0EA5E9'" style="flex:1;margin-right:12px" />
                 <span style="font-size:12px;color:#6B7280;margin-right:12px">{{ c.enrolled }}/{{ c.capacity }}</span>
                 <el-button v-if="c.selected" type="success" disabled size="small">已选</el-button>
                 <el-button v-else-if="c.enrolled >= c.capacity" type="info" disabled size="small">名额已满</el-button>

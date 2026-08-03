@@ -377,7 +377,7 @@ onMounted(loadData)
   justify-content: center;
   flex-shrink: 0;
 }
-.stat-icon--blue { background: var(--color-primary-bg, #EFF6FF); color: var(--color-primary, #2563EB); }
+.stat-icon--blue { background: var(--color-primary-bg, #F0F9FF); color: var(--color-primary, #0EA5E9); }
 .stat-icon--green { background: var(--color-success-bg, #ECFDF5); color: var(--color-success, #059669); }
 .stat-icon--orange { background: var(--color-warning-bg, #FFFBEB); color: var(--color-warning, #D97706); }
 .stat-icon--purple { background: var(--color-info-bg, #EEF2FF); color: var(--color-info, #6366F1); }
@@ -425,7 +425,7 @@ onMounted(loadData)
   margin-bottom: 14px;
   border-bottom: 2px solid #F3F4F6;
 }
-.card-schedule { border-top: 3px solid var(--color-primary, #2563EB); }
+.card-schedule { border-top: 3px solid var(--color-primary, #0EA5E9); }
 .card-notification { border-top: 3px solid var(--color-warning, #D97706); }
 
 /* ── Schedule Items ── */
@@ -434,14 +434,14 @@ onMounted(loadData)
   gap: 14px;
   padding: 14px 0 14px 14px;
   margin-bottom: 10px;
-  border-left: 3px solid var(--color-primary, #2563EB);
+border-left: 3px solid var(--color-primary, #0EA5E9);
   border-radius: 0 8px 8px 0;
   background: var(--color-bg-alt, #F8FAFC);
   transition: background 0.2s ease, transform 0.2s ease;
 }
 .schedule-item:last-child { margin-bottom: 0; }
 .schedule-item:hover {
-  background: var(--color-primary-bg, #EFF6FF);
+  background: var(--color-primary-bg, #F0F9FF);
   transform: translateX(4px);
 }
 .schedule-time {
@@ -503,7 +503,7 @@ onMounted(loadData)
   margin-top: auto;
   transition: color 0.15s;
 }
-.view-all:hover { color: #2563EB; }
+.view-all:hover { color: var(--color-primary); }
 
 /* ── Quick Entry Cards ── */
 .quick-entries {
@@ -538,7 +538,7 @@ onMounted(loadData)
   right: 0;
   height: 4px;
 }
-.entry-border--blue { background: linear-gradient(90deg, #2563EB, #3B82F6); }
+.entry-border--blue { background: linear-gradient(90deg, #0EA5E9, #6366F1); }
 .entry-border--orange { background: linear-gradient(90deg, #D97706, #F59E0B); }
 .entry-border--green { background: linear-gradient(90deg, #059669, #10B981); }
 .entry-label {

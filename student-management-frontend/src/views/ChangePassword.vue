@@ -27,7 +27,7 @@ async function handleChange(){if(newPwd.value.length<6){errorMsg.value='新密�
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%);
+    background: linear-gradient(135deg, #155E75 0%, #4C1D95 100%);
   padding: 24px;
 }
 
@@ -78,11 +78,11 @@ async function handleChange(){if(newPwd.value.length<6){errorMsg.value='新密�
   font-size: 15px;
   font-weight: 600;
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
   transition: all var(--transition-base);
 }
 .pwd-card .el-button--primary:hover {
-  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+    box-shadow: 0 6px 20px rgba(14, 165, 233, 0.45);
   transform: translateY(-1px);
 }
 

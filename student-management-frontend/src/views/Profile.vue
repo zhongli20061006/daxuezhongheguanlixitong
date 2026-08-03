@@ -30,7 +30,7 @@
 
     <div v-if="profile && statEntries.length" class="stat-cards" style="margin-top:24px">
       <div v-for="s in statEntries" :key="s.label" class="stat-card">
-        <div class="stat-icon" style="background:#EFF6FF">📊</div>
+<div class="stat-icon" style="background:#F0F9FF">📊</div>
         <div>
           <div class="stat-value">{{ s.value }}</div>
           <div class="stat-label">{{ s.label }}</div>
@@ -100,10 +100,10 @@ onMounted(load)
 .info-section { display:flex; gap:28px; align-items:flex-start; }
 .avatar-circle {
   width:80px; height:80px; border-radius:50%;
-  background:linear-gradient(135deg, #2563EB, #1E40AF);
+  background:linear-gradient(135deg, #0EA5E9, #6366F1);
   display:flex; align-items:center; justify-content:center;
   font-size:32px; color:#fff; flex-shrink:0;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
 }
 .info-main { flex:1; }
 .info-name { font-size:22px; font-weight:700; margin-bottom:14px; color: var(--color-text-primary, #111827); }

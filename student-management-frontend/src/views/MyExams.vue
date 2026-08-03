@@ -11,7 +11,7 @@
     <div v-else class="exam-timeline">
       <div v-for="e in exams" :key="e.id" class="content-card card-accent--info" style="display:flex;gap:16px;align-items:flex-start">
         <div style="min-width:80px;text-align:center">
-          <div style="font-size:24px;font-weight:700;color:#2563EB">{{ e.date?.slice(5) }}</div>
+<div style="font-size:24px;font-weight:700;color:var(--color-primary)">{{ e.date?.slice(5) }}</div>
           <div style="font-size:13px;color:#6B7280">{{ e.start_time }}-{{ e.end_time }}</div>
         </div>
         <div style="flex:1">

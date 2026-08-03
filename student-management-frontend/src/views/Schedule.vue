@@ -66,7 +66,7 @@ const weekdays = ['周一','周二','周三','周四','周五','周六','周日'
 const periodLabels = ['1-2','3-4','5-6','7-8','9-10']
 const typeMap = { compulsory:'必修', limited:'限选', elective:'选修' }
 const legend = [
-  { text:'必修', bg:'#EFF6FF', color:'#2563EB' }, { text:'限选', bg:'#FFFBEB', color:'#D97706' },
+  { text:'必修', bg:'#F0F9FF', color:'#0EA5E9' }, { text:'限选', bg:'#FFFBEB', color:'#D97706' },
   { text:'选修', bg:'#ECFDF5', color:'#059669' },
 ]
 
@@ -95,7 +95,7 @@ onMounted(() => store.fetchMySchedule())
 .period-cell { width:70px; background:#F9FAFB; font-size:12px; color:#6B7280; }
 .course-card { margin:3px 0; padding:6px 8px; border-radius:6px; border-left:4px solid; cursor:pointer; font-size:12px; transition:box-shadow .15s; }
 .course-card:hover { box-shadow:0 2px 8px rgba(0,0,0,.1); }
-.course-card.compulsory { background:#EFF6FF; border-color:#2563EB; }
+.course-card.compulsory { background:#F0F9FF; border-color:#0EA5E9; }
 .course-card.limited { background:#FFFBEB; border-color:#D97706; }
 .course-card.elective { background:#ECFDF5; border-color:#059669; }
 .course-name { font-weight:600; font-size:13px; }

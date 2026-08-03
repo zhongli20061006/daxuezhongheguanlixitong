@@ -164,7 +164,7 @@ onMounted(load)
   border-radius: 50%;
   background: var(--color-primary);
   flex-shrink: 0;
-  box-shadow: 0 0 4px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 0 4px rgba(14, 165, 233, 0.4);
 }
 
 /* ── Empty State Enhancement ── */

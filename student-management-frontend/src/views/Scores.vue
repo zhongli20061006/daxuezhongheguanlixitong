@@ -44,7 +44,7 @@ const avgGpa = computed(() => {
 })
 const totalCredits = computed(() => scores.value.reduce((s,c)=>s+(parseFloat(c.credit)||0),0).toFixed(1))
 
-function gpaColor(v) { if(v==null)return '#9CA3AF'; if(v>=4.0)return '#059669'; if(v>=3.0)return '#2563EB'; if(v>=2.0)return '#D97706'; if(v>=1.0)return '#DC2626'; return '#6B7280' }
+function gpaColor(v) { if(v==null)return '#9CA3AF'; if(v>=4.0)return '#059669'; if(v>=3.0)return '#0EA5E9'; if(v>=2.0)return '#D97706'; if(v>=1.0)return '#DC2626'; return '#6B7280' }
 
 onMounted(async () => {
   try {

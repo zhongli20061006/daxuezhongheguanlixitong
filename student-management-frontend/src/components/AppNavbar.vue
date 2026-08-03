@@ -367,7 +367,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   height: 60px;
-  background: linear-gradient(180deg, rgba(37,99,235,0.08) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(14,165,233,0.10) 0%, transparent 100%);
   pointer-events: none;
 }
 
@@ -410,7 +410,7 @@ onUnmounted(() => {
   color: #fff;
 }
 .sidebar-item.active {
-  background: linear-gradient(90deg, rgba(37,99,235,0.12) 0%, rgba(37,99,235,0.04) 100%);
+  background: linear-gradient(90deg, rgba(14,165,233,0.14) 0%, rgba(99,102,241,0.05) 100%);
   color: #fff;
   border-left-color: var(--color-primary-light);
   box-shadow: inset 4px 0 0 0 var(--color-primary-light);

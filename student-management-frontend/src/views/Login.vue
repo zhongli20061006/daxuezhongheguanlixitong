@@ -76,7 +76,7 @@ function forgetPwd() {
 .login-wrapper { display:flex; min-height:100vh; }
 .login-brand {
   flex:0 0 40%;
-  background:linear-gradient(135deg,#0F172A 0%,#1E3A5F 40%,#1E40AF 100%);
+  background:linear-gradient(135deg,#0F172A 0%,#155E75 45%,#4C1D95 100%);
   display:flex;
   align-items:center;
   justify-content:center;
@@ -118,24 +118,24 @@ function forgetPwd() {
   position:absolute;
   top:0; left:24px; right:24px;
   height:3px;
-  background:linear-gradient(90deg,#2563EB,#1D4ED8,#60A5FA);
+  background:linear-gradient(90deg,#0EA5E9,#6366F1,#8B5CF6);
   border-radius:0 0 3px 3px;
 }
 .form-greeting { font-size:14px; color:#6B7280; margin:0 0 24px; }
 .login-btn {
   width:100%; height:48px; font-size:16px;
-  background:linear-gradient(135deg,#2563EB,#1D4ED8) !important;
+  background:linear-gradient(135deg,#0EA5E9,#6366F1) !important;
   border:none !important;
 }
 .login-btn:hover {
-  box-shadow:0 6px 20px rgba(37,99,235,0.45) !important;
+  box-shadow:0 6px 20px rgba(14,165,233,0.45) !important;
   transform:translateY(-1px);
 }
 .forgot-pwd { text-align:center; color:#9CA3AF; font-size:13px; cursor:pointer; margin-top:12px; }
-.forgot-pwd:hover { color:#2563EB; }
+.forgot-pwd:hover { color:var(--color-primary); }
 .login-footer { text-align:center; color:#D1D5DB; font-size:11px; margin-top:16px; }
 :deep(.el-input__wrapper) { transition:box-shadow var(--transition-base),border-color var(--transition-base); }
-:deep(.el-input__wrapper.is-focus) { box-shadow:0 0 0 1px var(--color-primary) inset,0 0 0 3px rgba(37,99,235,0.15) !important; }
+:deep(.el-input__wrapper.is-focus) { box-shadow:0 0 0 1px var(--color-primary) inset,0 0 0 3px rgba(14,165,233,0.15) !important; }
 @media (max-width:768px) {
   .login-wrapper { flex-direction:column; }
   .login-brand { flex:0 0 160px; }
