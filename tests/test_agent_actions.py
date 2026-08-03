@@ -7,8 +7,9 @@ import pytest
 
 from app.models import (
     ApprovalConfig, ApprovalRecord, Classroom, ClassroomReservation, CourseCapacity,
-    CourseSelection, LeaveApplication, Notification, NotificationUser, Repair, Schedule,
-    Student, StudentClass, Subject, SubjectType, SystemConfig, Teacher,
+    CourseSelection, Exam, ExamArrangement, ExamStudent, LeaveApplication, Notification,
+    NotificationUser, Repair, Schedule, Score, ScoreType, Student, StudentClass,
+    Subject, SubjectType, SystemConfig, Teacher,
 )
 from app.services.agent.actions import ActionExecutor, _tomorrow_weekday
 from app.services.agent.confirmations import ConfirmationStore
@@ -469,3 +470,61 @@ async def test_chat_prepends_system_prompt(db):
     assert "智伴校园" in llm.captured[0]["content"]
     assert "确认卡片" in llm.captured[0]["content"]
     assert llm.captured[-1] == {"role": "user", "content": "你好"}
+
+
+@pytest.mark.asyncio
+async def test_query_scores_returns_card(db, test_engine):
+    await _seed(db, test_engine)
+    db.add(Score(
+        student_id="S2024001", schedule_id=1, score=88, gpa=3.7,
+        score_type=ScoreType.daily, attempt=1,
+    ))
+    await db.commit()
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_scores), "S2024001", "student", "s1", db
+    )
+    assert msgs[0].kind == "card"
+    assert msgs[0].data["scores"][0]["course"] == "人工智能实战"
+    assert msgs[0].data["scores"][0]["score"] == 88
+
+
+@pytest.mark.asyncio
+async def test_query_notifications_returns_card(db, test_engine):
+    await _seed(db, test_engine)
+    n = Notification(title="测试通知", content="通知内容", event_type="x")
+    db.add(n)
+    await db.flush()
+    db.add(NotificationUser(notification_id=n.id, recipient_id="S2024001", is_read=False))
+    await db.commit()
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_notifications), "S2024001", "student", "s1", db
+    )
+    assert msgs[0].kind == "card"
+    assert msgs[0].data["notifications"][0]["title"] == "测试通知"
+    assert msgs[0].data["unread"] == 1
+
+
+@pytest.mark.asyncio
+async def test_query_exams_student_returns_card(db, test_engine):
+    await _seed(db, test_engine)
+    db.add(Exam(
+        id=1, semester="2024-2025-1", subject_id=2, schedule_id=1,
+        exam_type="统一考试", duration_minutes=120, status="已发布",
+    ))
+    await db.flush()
+    db.add(ExamArrangement(
+        exam_id=1, classroom_id=1, date=date(2026, 8, 10),
+        start_time="09:00", end_time="11:00", invigilator_id="T10001",
+    ))
+    await db.flush()
+    db.add(ExamStudent(exam_id=1, student_id="S2024001", seat_no=3))
+    await db.commit()
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_exams), "S2024001", "student", "s1", db
+    )
+    assert msgs[0].kind == "card"
+    assert msgs[0].data["exams"][0]["subject"] == "人工智能实战"
+    assert msgs[0].data["exams"][0]["seat"] == 3

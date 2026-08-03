@@ -9,8 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
-    Classroom, ClassroomReservation, CourseCapacity, CourseSelection, Repair, RepairStatus,
-    RepairType, Schedule, Student, Subject, SubjectType, SystemConfig, Teacher,
+    Classroom, ClassroomReservation, CourseCapacity, CourseSelection, Exam, ExamArrangement,
+    ExamStudent, Repair, RepairStatus, RepairType, Schedule, Score, Student, Subject,
+    SubjectType, SystemConfig, Teacher,
 )
 from app.services.agent.confirmations import ConfirmationStore
 from app.services.agent.intent import Intent, IntentType, KNOWN_PAGES
@@ -28,7 +29,10 @@ STUDENT_ONLY = frozenset({
     IntentType.query_schedule, IntentType.study_plan, IntentType.enroll, IntentType.drop,
     IntentType.leave_apply,
 })
-NOT_FOR_ADMIN = frozenset({IntentType.reserve_classroom, IntentType.repair_submit, IntentType.leave_apply})
+NOT_FOR_ADMIN = frozenset({
+    IntentType.reserve_classroom, IntentType.repair_submit, IntentType.leave_apply,
+    IntentType.query_scores, IntentType.query_exams,
+})
 
 REPAIR_TYPES = frozenset(t.value for t in RepairType)
 
@@ -173,6 +177,79 @@ class ActionExecutor:
         return await self._handle_navigate(
             Intent(intent=IntentType.navigate, params={"page": "/classrooms"}), user_id, role, session_id, db
         )
+
+    async def _handle_query_scores(self, intent, user_id, role, session_id, db):
+        from app.services.agent import AgentMessage
+
+        student_id = (intent.params.get("student") or "").strip() or user_id
+        if role == "student" and student_id != user_id:
+            return [AgentMessage(kind="error", title="业务失败", content="只能查看自己的成绩")]
+        rows = (await db.execute(
+            select(Score, Subject)
+            .join(Schedule, Score.schedule_id == Schedule.id)
+            .join(Subject, Schedule.subject_id == Subject.id)
+            .where(Score.student_id == student_id)
+            .order_by(Subject.name, Score.score_type)
+        )).all()
+        if not rows:
+            return [AgentMessage(kind="card", title="我的成绩", content="暂无成绩记录", data={"scores": []})]
+        scores = [{
+            "course": subj.name, "credit": float(subj.credit),
+            "score": float(sc.score) if sc.score is not None else None,
+            "gpa": float(sc.gpa),
+            "type": sc.score_type if isinstance(sc.score_type, str) else str(sc.score_type.value),
+        } for sc, subj in rows]
+        return [AgentMessage(kind="card", title="我的成绩", content=f"共 {len(scores)} 条成绩记录", data={"scores": scores})]
+
+    async def _handle_query_notifications(self, intent, user_id, role, session_id, db):
+        from app.services.agent import AgentMessage
+        from app.services.notification_service import notification_service
+
+        items = await notification_service.get_user_notifications(db, user_id, role, limit=5, offset=0)
+        unread = await notification_service.get_unread_count(db, user_id, role)
+        if not items:
+            return [AgentMessage(kind="card", title="通知中心", content=f"暂无通知，未读 {unread} 条",
+                                 data={"notifications": [], "unread": unread})]
+        return [AgentMessage(kind="card", title="通知中心", content=f"最新 {len(items)} 条，未读 {unread} 条",
+                             data={"notifications": items, "unread": unread})]
+
+    async def _handle_query_exams(self, intent, user_id, role, session_id, db):
+        from app.services.agent import AgentMessage
+
+        if role == "student":
+            rows = (await db.execute(
+                select(Exam, Subject, ExamArrangement, Classroom, ExamStudent)
+                .join(Subject, Exam.subject_id == Subject.id)
+                .join(ExamArrangement, Exam.id == ExamArrangement.exam_id)
+                .join(Classroom, ExamArrangement.classroom_id == Classroom.id)
+                .join(ExamStudent, Exam.id == ExamStudent.exam_id)
+                .where(ExamStudent.student_id == user_id)
+                .order_by(ExamArrangement.date.asc(), ExamArrangement.start_time.asc())
+            )).all()
+            title = "我的考试"
+            items = [{
+                "subject": s.name, "classroom": c.name,
+                "date": a.date.isoformat() if a.date else None,
+                "time": f"{a.start_time}-{a.end_time}", "status": e.status, "seat": es.seat_no,
+            } for e, s, a, c, es in rows]
+        else:
+            rows = (await db.execute(
+                select(Exam, Subject, ExamArrangement, Classroom)
+                .join(Subject, Exam.subject_id == Subject.id)
+                .join(ExamArrangement, Exam.id == ExamArrangement.exam_id)
+                .join(Classroom, ExamArrangement.classroom_id == Classroom.id)
+                .where(ExamArrangement.invigilator_id == user_id)
+                .order_by(ExamArrangement.date.asc(), ExamArrangement.start_time.asc())
+            )).all()
+            title = "我的监考安排"
+            items = [{
+                "subject": s.name, "classroom": c.name,
+                "date": a.date.isoformat() if a.date else None,
+                "time": f"{a.start_time}-{a.end_time}", "status": e.status, "seat": None,
+            } for e, s, a, c in rows]
+        if not items:
+            return [AgentMessage(kind="card", title=title, content="暂无安排", data={"exams": []})]
+        return [AgentMessage(kind="card", title=title, content=f"共 {len(items)} 场", data={"exams": items})]
 
     async def _handle_reserve_classroom(self, intent, user_id, role, session_id, db):
         from app.services.agent import AgentMessage
