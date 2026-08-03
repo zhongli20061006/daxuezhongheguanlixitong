@@ -154,14 +154,20 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAgentStore } from '../stores/agent'
+import { useAuthStore } from '../stores/auth'
 import AgentLogo from '../components/AgentLogo.vue'
 
 const store = useAgentStore()
+const auth = useAuthStore()
 const router = useRouter()
 const input = ref('')
 const listRef = ref(null)
 
-const quickPrompts = ['明天上什么课', '给明天学习方案', '帮我选人工智能实战', '打开选课页面']
+const quickPrompts = computed(() =>
+  auth.role === 'teacher'
+    ? ['把张三的高数成绩录成90分', '查一下2024级计算机科学1班的课表', '查一下5班有哪些学生', '查我的监考安排']
+    : ['明天上什么课', '给明天学习方案', '帮我选人工智能实战', '打开选课页面']
+)
 const isHero = computed(() => store.messages.length === 0)
 
 onMounted(async () => {
