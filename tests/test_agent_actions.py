@@ -691,3 +691,50 @@ async def test_approve_leave_student_forbidden(db, test_engine):
         "S2024001", "student", "s1", db,
     )
     assert msgs[0].kind == "error"
+
+
+@pytest.mark.asyncio
+async def test_teacher_query_class_schedule_card(db, test_engine):
+    await _seed(db, test_engine)
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_class_schedule, params={"class": "测试班"}),
+        "T10001", "teacher", "s", db,
+    )
+    assert msgs[0].kind == "card"
+    assert msgs[0].data["schedule"]
+    assert msgs[0].data["class"] == "测试班"
+
+
+@pytest.mark.asyncio
+async def test_student_blocked_from_class_schedule(db):
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_class_schedule, params={"class": "测试班"}),
+        "S2024001", "student", "s", db,
+    )
+    assert msgs[0].kind == "error"
+
+
+@pytest.mark.asyncio
+async def test_query_class_schedule_missing_class(db):
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_class_schedule, params={}),
+        "T10001", "teacher", "s", db,
+    )
+    assert msgs[0].kind == "error"
+
+
+@pytest.mark.asyncio
+async def test_query_class_schedule_ambiguous_class(db, test_engine):
+    await _seed(db, test_engine)
+    db.add(StudentClass(id=2, name="测试班2", major="软件工程", grade=2024, advisor_id=1))
+    await db.commit()
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.query_class_schedule, params={"class": "测试"}),
+        "T10001", "teacher", "s", db,
+    )
+    assert msgs[0].kind == "error"
+    assert "多个班级" in msgs[0].content

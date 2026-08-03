@@ -33,7 +33,10 @@ NOT_FOR_ADMIN = frozenset({
     IntentType.reserve_classroom, IntentType.repair_submit, IntentType.leave_apply,
     IntentType.query_scores, IntentType.query_exams,
 })
-NOT_FOR_STUDENT = frozenset({IntentType.approve_leave})
+NOT_FOR_STUDENT = frozenset({
+    IntentType.approve_leave, IntentType.query_class_schedule,
+    IntentType.query_students, IntentType.score_entry,
+})
 
 REPAIR_TYPES = frozenset(t.value for t in RepairType)
 
@@ -113,6 +116,60 @@ class ActionExecutor:
         if not courses:
             return [AgentMessage(kind="card", title="明天的课表", content="明天没有课", data={"courses": []})]
         return [AgentMessage(kind="card", title="明天的课表", content=f"明天共 {len(courses)} 节课", data={"courses": courses})]
+
+    async def _resolve_class(self, class_ref: str, db: AsyncSession):
+        """按班级名精确/包含匹配；唯一命中才返回，多义让用户确认。"""
+        from app.models import StudentClass
+
+        if not class_ref or not class_ref.strip():
+            return None, "请提供班级名称，例如“2024级计算机科学1班”或“1班”"
+        ref = class_ref.strip()
+        rows = (await db.execute(
+            select(StudentClass).order_by(StudentClass.id)
+        )).scalars().all()
+        exact = [c for c in rows if c.name == ref]
+        if exact:
+            return exact[0], None
+        matches = [c for c in rows if ref in c.name or c.name in ref]
+        if len(matches) == 1:
+            return matches[0], None
+        if len(matches) > 1:
+            names = "、".join(c.name for c in matches)
+            return None, f"找到多个班级（{names}），请提供更完整的班级名"
+        return None, f"没找到班级“{ref}”"
+
+    async def _handle_query_class_schedule(self, intent, user_id, role, session_id, db):
+        from app.models import Classroom, Schedule, Subject, Teacher
+        from app.services.agent import AgentMessage
+
+        cls, err = await self._resolve_class(intent.params.get("class"), db)
+        if err:
+            return [AgentMessage(kind="error", title="业务失败", content=err)]
+        rows = (await db.execute(
+            select(Schedule, Subject, Teacher, Classroom)
+            .join(Subject, Schedule.subject_id == Subject.id)
+            .join(Teacher, Schedule.teacher_id == Teacher.id)
+            .join(Classroom, Schedule.classroom_id == Classroom.id)
+            .where(Schedule.class_id == cls.id)
+            .order_by(Schedule.day_of_week, Schedule.period)
+        )).all()
+        items = [{
+            "day_of_week": s.day_of_week,
+            "course": subj.name,
+            "teacher": t.name,
+            "classroom": c.name,
+            "period": s.period,
+            "weeks": s.weeks,
+        } for s, subj, t, c in rows]
+        if not items:
+            return [AgentMessage(
+                kind="card", title=f"{cls.name} 课表",
+                content="暂无课程安排", data={"schedule": [], "class": cls.name},
+            )]
+        return [AgentMessage(
+            kind="card", title=f"{cls.name} 课表",
+            content=f"共 {len(items)} 条课程安排", data={"schedule": items, "class": cls.name},
+        )]
 
     async def _handle_study_plan(self, intent, user_id, role, session_id, db):
         from app.services.agent import AgentMessage
