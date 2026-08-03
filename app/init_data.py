@@ -1,15 +1,13 @@
 """
 数据初始化脚本
-功能：清空所有表后插入完整的测试数据，生成随机密码并打印到控制台
-特性：可重复执行（TRUNCATE 方式），每次运行生成不同的随机密码
+功能：清空所有表后插入完整的测试数据，所有测试账号密码统一为 test123456
+特性：可重复执行（TRUNCATE 方式），每次运行生成相同的测试账号密码
 
 运行方式（在项目根目录执行）：
     python -m app.init_data
     或
     python app/init_data.py
 """
-import secrets
-import string
 import sys
 import os
 
@@ -25,16 +23,6 @@ from app.models import (
     UserCredential, UserRole, Student, Staff,
     SystemConfig, TrainingPlan, PlanCourse,
 )
-
-
-def generate_password(length: int = 12) -> str:
-    """
-    生成加密安全的随机密码
-    参数: length — 密码长度，默认12位
-    返回: 包含大小写字母和数字的随机字符串
-    """
-    alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 
 def hash_password(plain_text: str) -> str:
@@ -266,7 +254,7 @@ def init_data():
         db.flush()
 
         # ===== Step 9: 创建用户认证账号（所有角色统一管理）=====
-        # 每个账号生成随机密码，首次登录强制修改
+        # 所有测试账号统一使用固定密码 test123456，首次登录不强制改密（与 agent01 一致）
         all_accounts = [
             # 管理员（2人）— role_id 用独立编号
             {"username": "admin01", "role": UserRole.admin, "role_id": "A001"},
@@ -285,13 +273,13 @@ def init_data():
         ]
 
         for account in all_accounts:
-            plain_pwd = generate_password()
+            plain_pwd = "test123456"
             credential = UserCredential(
                 username=account["username"],
                 password_hash=hash_password(plain_pwd),
                 role=account["role"],
                 role_id=account["role_id"],
-                must_change_password=True,
+                must_change_password=False,
             )
             db.add(credential)
             credentials.append({
@@ -367,7 +355,7 @@ def init_data():
     staff_accounts = [c for c in credentials if c["role"] == "staff"]
 
     print("=" * 72)
-    print("  账号密码列表（首次登录需修改密码）")
+    print("  账号密码列表（密码统一为 test123456）")
     print("=" * 72)
     print(f"\n  【管理员账号 ({len(admin_accounts)}个)】")
     print(f"  {'用户名':<14} {'密码':<16} {'角色'}")
@@ -394,7 +382,7 @@ def init_data():
         print(f"  {c['username']:<14} {c['password']:<16} {c['role']}")
 
     print("\n" + "=" * 72)
-    print("  提示：所有用户首次登录后必须修改密码")
+    print("  提示：所有测试账号密码均为 test123456")
     print("=" * 72)
 
 
