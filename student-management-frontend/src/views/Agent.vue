@@ -112,7 +112,7 @@
                   <template #default="{ row }">{{ row.has_projector ? '有' : '无' }}</template>
                 </el-table-column>
               </el-table>
-              <el-table v-else-if="m.data?.schedule" :data="m.data.schedule" size="small">
+              <el-table v-else-if="m.data?.schedule" :data="m.data.schedule" size="small" :max-height="320">
                 <el-table-column label="星期" width="70">
                   <template #default="{ row }">{{ weekday[row.day_of_week - 1] || row.day_of_week }}</template>
                 </el-table-column>
