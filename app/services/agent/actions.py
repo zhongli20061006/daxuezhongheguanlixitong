@@ -302,15 +302,18 @@ class ActionExecutor:
                 .join(Subject, Schedule.subject_id == Subject.id)
                 .where(Schedule.teacher_id == teacher.id)
             )).all()
-            matched = [r for r in rows if r.Subject.name == course_ref] or [
-                r for r in rows if course_ref in r.Subject.name or r.Subject.name in course_ref
+            scored = [
+                (ActionExecutor._course_score(course_ref, r.Subject.name), r)
+                for r in rows
             ]
-            if not matched:
+            top_score = max(s for s, _ in scored)
+            best = [r for s, r in scored if s == top_score]
+            if top_score < 2.0:
                 return False, f"没找到你教的课程“{course_ref}”", {}
-            if len(matched) > 1:
-                names = "、".join(r.Subject.name for r in matched)
+            if len(best) > 1:
+                names = "、".join(r.Subject.name for r in best)
                 return False, f"课程“{course_ref}”匹配到多个（{names}），请补充更完整课程名", {}
-            schedule, subject = matched[0]
+            schedule, subject = best[0]
         enrolled = (await db.execute(
             select(CourseSelection).where(
                 CourseSelection.student_id == student.id,
@@ -860,7 +863,7 @@ class ActionExecutor:
 
     @staticmethod
     def _course_score(query: str, name: str) -> float:
-        """课程名贴合度：精确 > 双向包含 > 最长公共子串。"""
+        """课程名贴合度：精确 > 双向包含 > 最长公共子序列。"""
         if not query:
             return 0.0
         if query == name or query.upper() == name.upper():
@@ -871,16 +874,17 @@ class ActionExecutor:
 
     @staticmethod
     def _lcs_len(a: str, b: str) -> int:
+        """最长公共子序列长度（不要求连续，如"高数"→"高等数学"）。"""
         n, m = len(a), len(b)
         dp = [[0] * (m + 1) for _ in range(n + 1)]
-        best = 0
         for i in range(1, n + 1):
             ai = a[i - 1]
             for j in range(1, m + 1):
                 if ai == b[j - 1]:
                     dp[i][j] = dp[i - 1][j - 1] + 1
-                    best = max(best, dp[i][j])
-        return best
+                else:
+                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+        return dp[n][m]
 
     @staticmethod
     def _course_hint(rows) -> str:

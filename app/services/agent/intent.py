@@ -316,8 +316,14 @@ def _extract_students_params(text: str) -> dict[str, str]:
 
 
 def _extract_score_params(text: str) -> dict[str, str]:
-    """规则兜底：抽取分数与成绩类型（学生/课程由 LLM 或追问提供）。"""
+    """规则兜底：抽取学生/课程/分数/成绩类型（"把X的Y成绩录成Z分"句式）。"""
     params: dict[str, str] = {}
+    m = re.search(r"(?:把|给|为)([\u4e00-\u9fa5A-Za-z0-9]{1,30}?)(?:同学)?的", text)
+    if m:
+        params["student"] = m.group(1).strip()
+    m = re.search(r"(?:的)([\u4e00-\u9fa5A-Za-z0-9]{1,30}?)(?:成绩|分数|录成|打)", text)
+    if m:
+        params["course"] = m.group(1).strip()
     m = re.search(r"(\d{1,3}(?:\.\d+)?)\s*分", text)
     if m:
         params["score"] = m.group(1)

@@ -301,8 +301,18 @@ def test_rules_score_entry_beats_query_scores():
     assert intent is not None
     assert intent.intent == IntentType.score_entry
     assert intent.need_confirm is True
+    assert intent.params["student"] == "张三"
+    assert intent.params["course"] == "高数"
     assert intent.params["score"] == "90"
     assert intent.params["score_type"] == "期末"
+
+
+def test_extract_score_params_student_id_and_course():
+    params = extract_params_for(IntentType.score_entry, "把agent01的计算机科学与技术录成60分")
+    assert params["student"] == "agent01"
+    assert params["course"] == "计算机科学与技术"
+    assert params["score"] == "60"
+    assert params["score_type"] == "期末"
 
 
 def test_rules_query_scores_still_works():

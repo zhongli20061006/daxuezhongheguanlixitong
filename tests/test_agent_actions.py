@@ -839,3 +839,36 @@ async def test_score_entry_confirmation_then_execute(db, test_engine):
     )).scalars().all()
     assert len(scores) == 1
     assert scores[0].score == 90
+
+
+@pytest.mark.asyncio
+async def test_score_entry_rule_params_flow_to_confirmation(db, test_engine):
+    """规则兜底抽取的学生/课程/分数应能直接走到确认卡片（LLM 不可用场景）。"""
+    from app.services.agent.intent import match_rules
+
+    await _seed(db, test_engine)
+    db.add(CourseSelection(student_id="S2024001", schedule_id=1, status=1))
+    await db.commit()
+    intent = match_rules("把测试学生的人工智能实战成绩录成90分")
+    assert intent is not None and intent.intent == IntentType.score_entry
+    executor = _executor()
+    msgs = await executor.execute(intent, "T10001", "teacher", "sess1", db)
+    assert msgs[0].kind == "confirmation"
+
+
+@pytest.mark.asyncio
+async def test_score_entry_fuzzy_course_alias(db, test_engine):
+    """课程简称（高数→高等数学）在预检时应能模糊匹配。"""
+    await _seed(db, test_engine)
+    db.add(Schedule(
+        id=2, teacher_id=1, subject_id=1, class_id=1, classroom_id=1,
+        weeks="1-18", day_of_week=2, period="3-4", semester="2024-2025-1",
+    ))
+    db.add(CourseSelection(student_id="S2024001", schedule_id=2, status=1))
+    await db.commit()
+    executor = _executor()
+    intent = Intent(intent=IntentType.score_entry, params={
+        "student": "S2024001", "course": "高数", "score": "90", "score_type": "期末",
+    }, need_confirm=True)
+    msgs = await executor.execute(intent, "T10001", "teacher", "sess1", db)
+    assert msgs[0].kind == "confirmation"
