@@ -109,8 +109,19 @@ export const useAgentStore = defineStore('agent', () => {
     }
   }
 
+  function reset() {
+    // 切换账号时清空，避免看到上一个账号的会话与消息
+    sessions.value = []
+    currentSessionId.value = ''
+    messages.value = []
+    sessionCache.value = {}
+    sending.value = false
+    loadingHistory.value = false
+    ollamaStatus.value = 'unknown'
+  }
+
   return {
     sessions, currentSessionId, messages, sessionCache, sending, loadingHistory, ollamaStatus,
-    loadSessions, newSession, send, selectSession, confirm, removeSession, refreshStatus,
+    loadSessions, newSession, send, selectSession, confirm, removeSession, refreshStatus, reset,
   }
 })

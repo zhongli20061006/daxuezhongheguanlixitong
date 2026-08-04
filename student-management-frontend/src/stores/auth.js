@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { login as loginApi, changePassword as changePwdApi, getMe as getMeApi, logout as logoutApi } from '../api/auth'
+import { useAgentStore } from './agent'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref('')  // 仅用于 WebSocket，不持久化
@@ -75,6 +76,8 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('sms_name')
     localStorage.removeItem('sms_user_id')
     localStorage.removeItem('sms_must_change')
+    // 清空智能体会话状态，避免下一个账号看到上一个账号的对话
+    useAgentStore().reset()
   }
 
   return { token, role, name, userId, mustChangePassword, isLoggedIn, isAdmin, login, changePassword, logout, restoreSession, checkAuth }
