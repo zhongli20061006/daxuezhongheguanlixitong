@@ -50,6 +50,9 @@ def _allowed(intent: IntentType, role: str) -> bool:
         return False
     if intent in NOT_FOR_STUDENT and role == "student":
         return False
+    # 请假审批仅限辅导员/管理员；后勤等其他角色无权审批
+    if intent == IntentType.approve_leave and role not in ("teacher", "admin"):
+        return False
     return True
 
 

@@ -694,6 +694,17 @@ async def test_approve_leave_student_forbidden(db, test_engine):
 
 
 @pytest.mark.asyncio
+async def test_approve_leave_staff_forbidden(db, test_engine):
+    await _seed_pending_leave(db, test_engine)
+    executor = _executor()
+    msgs = await executor.execute(
+        Intent(intent=IntentType.approve_leave, params={"leave": "1", "result": "通过"}),
+        "G10001", "staff", "s1", db,
+    )
+    assert msgs[0].kind == "error"
+
+
+@pytest.mark.asyncio
 async def test_teacher_query_class_schedule_card(db, test_engine):
     await _seed(db, test_engine)
     executor = _executor()
