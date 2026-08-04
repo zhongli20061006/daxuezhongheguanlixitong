@@ -112,16 +112,18 @@
                   <template #default="{ row }">{{ row.has_projector ? '有' : '无' }}</template>
                 </el-table-column>
               </el-table>
-              <el-table v-else-if="m.data?.schedule" :data="m.data.schedule" size="small" :max-height="320">
-                <el-table-column label="星期" width="70">
-                  <template #default="{ row }">{{ weekday[row.day_of_week - 1] || row.day_of_week }}</template>
-                </el-table-column>
-                <el-table-column prop="period" label="节次" width="80" />
-                <el-table-column prop="course" label="课程" />
-                <el-table-column prop="teacher" label="老师" width="90" />
-                <el-table-column prop="classroom" label="教室" width="90" />
-                <el-table-column prop="weeks" label="周次" width="80" />
-              </el-table>
+              <div v-else-if="m.data?.schedule" class="table-scroll">
+                <el-table :data="m.data.schedule" size="small">
+                  <el-table-column label="星期" width="70">
+                    <template #default="{ row }">{{ weekday[row.day_of_week - 1] || row.day_of_week }}</template>
+                  </el-table-column>
+                  <el-table-column prop="period" label="节次" width="80" />
+                  <el-table-column prop="course" label="课程" />
+                  <el-table-column prop="teacher" label="老师" width="90" />
+                  <el-table-column prop="classroom" label="教室" width="90" />
+                  <el-table-column prop="weeks" label="周次" width="80" />
+                </el-table>
+              </div>
               <pre v-else class="plain">{{ m.content }}</pre>
             </div>
           </el-card>
@@ -349,6 +351,7 @@ function cancelMsg(m) {
   margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
   font-family: inherit; font-size: 13px;
 }
+.table-scroll { max-height: 320px; overflow-y: auto; }
 .plan-box { display: flex; flex-direction: column; gap: 10px; }
 .plan-summary { margin: 0; font-weight: 600; color: #1e293b; }
 .plan-item {
