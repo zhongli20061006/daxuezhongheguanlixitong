@@ -112,6 +112,16 @@
                   <template #default="{ row }">{{ row.has_projector ? '有' : '无' }}</template>
                 </el-table-column>
               </el-table>
+              <el-table v-else-if="m.data?.schedule" :data="m.data.schedule" size="small">
+                <el-table-column label="星期" width="70">
+                  <template #default="{ row }">{{ weekday[row.day_of_week - 1] || row.day_of_week }}</template>
+                </el-table-column>
+                <el-table-column prop="period" label="节次" width="80" />
+                <el-table-column prop="course" label="课程" />
+                <el-table-column prop="teacher" label="老师" width="90" />
+                <el-table-column prop="classroom" label="教室" width="90" />
+                <el-table-column prop="weeks" label="周次" width="80" />
+              </el-table>
               <pre v-else class="plain">{{ m.content }}</pre>
             </div>
           </el-card>
