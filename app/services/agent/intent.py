@@ -83,7 +83,7 @@ _SHORT_DATE_RE = re.compile(r"(\d{1,2})[./-](\d{1,2})号?")
 _MONTH_DAY_RE = re.compile(r"(\d{1,2})月(\d{1,2})[日号]?")
 
 _REPAIR_TYPE_KEYWORDS: list[tuple[str, tuple[str, ...]]] = [
-    ("水电设备", ("水电", "水龙头", "漏水", "断电", "灯", "插座", "水管")),
+    ("水电设备", ("水电", "水龙头", "漏水", "断电", "灯", "插座", "水管", "饮水机")),
     ("电子产品", ("电脑", "投影", "屏幕", "打印机", "电子", "网络")),
     ("家具类", ("桌椅", "椅子", "桌子", "柜子", "床", "家具")),
     ("教学用具", ("黑板", "白板", "粉笔", "多媒体", "讲台", "教具")),
@@ -215,20 +215,33 @@ def _intent_usable(intent: "Intent") -> bool:
 
 
 def _extract_repair_params(text: str) -> dict[str, str]:
-    """规则兜底：抽取报修地点/类型/描述。"""
+    """规则兜底：抽取报修地点/类型/描述（地点含楼栋+编号，如"教学楼1办公室"）。"""
     params: dict[str, str] = {}
     for type_name, keywords in _REPAIR_TYPE_KEYWORDS:
         if any(kw in text for kw in keywords):
             params["type"] = type_name
             break
+    cleaned = re.sub(
+        r"^(?:麻烦帮我|请帮我|帮我|麻烦|请|帮|我要|我想)(?:报修|维修|修一下|修理|修)",
+        "", text.strip(),
+    )
     m = re.search(r"(?:在|地点|位置)[:：]?\s*([^，。,.！!？?\s]{1,30})", text)
     if not m:
-        m = re.search(r"([\u4e00-\u9fa5]{2,12}(?:教室|宿舍|办公室|实验室|机房|楼|馆|大厅|卫生间))", text)
+        m = re.search(
+            r"([\u4e00-\u9fa5A-Za-z0-9]{1,16}(?:教室|宿舍|办公室|实验室|机房|楼|馆|大厅|卫生间))",
+            cleaned,
+        )
     if not m:
-        m = re.search(r"([A-Za-z]{1,4}\d{2,4})", text)
+        m = re.search(r"([A-Za-z]{1,4}\d{2,4})", cleaned)
     if m:
         params["location"] = m.group(1).strip()
-    m = re.search(r"([^，。,.！!？?\s]{1,20}?)(?:坏了|有问题|需要修|故障|不能用)", text)
+    desc_src = cleaned
+    if params.get("location"):
+        desc_src = cleaned.replace(params["location"], "", 1).lstrip("的").strip()
+    m = re.search(
+        r"([\u4e00-\u9fa5A-Za-z0-9]{1,20}?)(?:坏了|有问题|需要修|故障|不能用)",
+        desc_src,
+    )
     if m:
         params["description"] = m.group(1).strip()
     return params

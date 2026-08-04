@@ -69,6 +69,24 @@ def test_rules_repair_submit_extracts_params():
     assert intent.params["description"] == "投影仪"
 
 
+def test_rules_repair_water_dispenser():
+    intent = match_rules("帮我报修教学楼1办公室的饮水机坏了")
+    assert intent is not None
+    assert intent.intent == IntentType.repair_submit
+    assert intent.params["location"] == "教学楼1办公室"
+    assert intent.params["type"] == "水电设备"
+    assert intent.params["description"] == "饮水机"
+
+
+def test_rules_repair_building_office_whiteboard():
+    intent = match_rules("帮我报修教学楼1办公室的教学白板坏了")
+    assert intent is not None
+    assert intent.intent == IntentType.repair_submit
+    assert intent.params["location"] == "教学楼1办公室"
+    assert intent.params["type"] == "教学用具"
+    assert intent.params["description"] == "教学白板"
+
+
 def test_rules_reserve_classroom_extracts_params():
     intent = match_rules("帮我预约教室D101，第3周周五1-2节，用于班会")
     assert intent.intent == IntentType.reserve_classroom

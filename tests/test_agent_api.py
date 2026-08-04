@@ -254,6 +254,22 @@ async def test_chat_repair_confirmation_and_confirm(client, db, test_engine, aut
 
 
 @pytest.mark.asyncio
+async def test_chat_repair_water_dispenser_rules(client, db, test_engine, auth_override, fake_llm):
+    """规则兜底下：教学楼1办公室的饮水机报修 → 类型识别 + 参数抽取 + 确认卡片。"""
+    await _seed_agent_data(db, test_engine)
+    resp = await client.post("/agent/chat", json={
+        "message": "帮我报修教学楼1办公室的饮水机坏了",
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    cards = [m for m in data["messages"] if m["kind"] == "confirmation"]
+    assert cards, data["messages"]
+    assert cards[0]["data"]["location"] == "教学楼1办公室"
+    assert cards[0]["data"]["type"] == "水电设备"
+    assert cards[0]["data"]["description"] == "饮水机"
+
+
+@pytest.mark.asyncio
 async def test_chat_reserve_confirmation_and_confirm(client, db, test_engine, auth_override, fake_llm):
     """规则兜底下：预约教室意图参数抽取 → 确认卡片 → 确认后真实创建预约。"""
     await _seed_agent_data(db, test_engine)
