@@ -1,68 +1,58 @@
 /* ================================================================
-   Design Tokens & Global Styles — Student Management System
+   Design Tokens & Global Styles — 智伴校园（现代学院风）
    ================================================================ */
 
 :root {
   /* ── Brand Colors ── */
-  --color-primary: #0EA5E9;
-  --color-primary-light: #38BDF8;
-  --color-primary-dark: #0284C7;
-  --color-primary-bg: #F0F9FF;
-  --color-accent: #F97316;
-  --color-accent-bg: #FFF7ED;
-  --gradient-accent: linear-gradient(135deg, #0EA5E9 0%, #6366F1 55%, #8B5CF6 100%);
+  --color-primary: #0F766E;
+  --color-primary-hover: #0B5F55;
+  --color-primary-active: #095047;
+  --color-primary-light: #3E9A91;
+  --color-primary-bg: #E7F0EE;
+  --color-accent: var(--color-primary);
 
-  --color-success: #059669;
-  --color-success-light: #34D399;
-  --color-success-bg: #ECFDF5;
+  --color-success: #3F7D5E;
+  --color-success-light: #6FA184;
+  --color-success-bg: #EAF1E9;
+  --color-warning: #B07D2A;
+  --color-warning-light: #C99B5A;
+  --color-warning-bg: #F7F0E2;
+  --color-danger: #B4493C;
+  --color-danger-light: #CF7568;
+  --color-danger-bg: #F6EAE7;
+  --color-info: #56739A;
+  --color-info-bg: #EAEFF5;
 
-  --color-warning: #D97706;
-  --color-warning-light: #F59E0B;
-  --color-warning-bg: #FFFBEB;
+  /* ── Neutral Palette (warm) ── */
+  --color-bg: #F5F0E7;
+  --color-bg-alt: #EFE9DD;
+  --color-surface: #FFFDF9;
+  --color-surface-hover: #FAF6EC;
+  --color-border: #E6DED0;
+  --color-border-light: #EFE9DD;
 
-  --color-danger: #DC2626;
-  --color-danger-light: #EF4444;
-  --color-danger-bg: #FEF2F2;
-
-  --color-info: #6366F1;
-  --color-info-bg: #EEF2FF;
-
-  /* ── Neutral Palette ── */
-  --color-bg: #F8FAFC;
-  --color-bg-alt: #F1F5F9;
-  --color-surface: #FFFFFF;
-  --color-border: #E5E7EB;
-  --color-border-light: #F3F4F6;
-
-  --color-text-primary: #111827;
-  --color-text-secondary: #374151;
-  --color-text-tertiary: #6B7280;
-  --color-text-muted: #9CA3AF;
+  --color-text-primary: #26221C;
+  --color-text-secondary: #615B50;
+  --color-text-tertiary: #756F63;
+  --color-text-muted: #938C7E;
   --color-text-inverse: #FFFFFF;
 
-  /* ── Sidebar / Header ── */
-  --color-sidebar-bg: linear-gradient(180deg, #0F172A 0%, #1E1B4B 55%, #4C1D95 160%);
-  --color-sidebar-hover: rgba(255,255,255,0.08);
-  --color-sidebar-active: rgba(14, 165, 233, 0.28);
-  --color-header-bg: linear-gradient(135deg, #0F172A 0%, #155E75 50%, #4C1D95 100%);
-
-  /* ── Shadow Levels ── */
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
-  --shadow-md: 0 4px 10px rgba(15, 23, 42, 0.05), 0 2px 4px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 12px 24px rgba(15, 23, 42, 0.07), 0 4px 8px rgba(15, 23, 42, 0.04);
-  --shadow-xl: 0 24px 40px rgba(15, 23, 42, 0.09), 0 8px 16px rgba(15, 23, 42, 0.05);
-  --shadow-card-hover: 0 12px 28px rgba(15, 23, 42, 0.10);
+  /* ── Shadow Levels (warm-tinted) ── */
+  --shadow-xs: 0 1px 2px rgba(61, 55, 45, 0.05);
+  --shadow-sm: 0 1px 3px rgba(61, 55, 45, 0.06), 0 1px 2px rgba(61, 55, 45, 0.04);
+  --shadow-md: 0 4px 10px rgba(61, 55, 45, 0.07), 0 2px 4px rgba(61, 55, 45, 0.05);
+  --shadow-lg: 0 12px 24px rgba(61, 55, 45, 0.09), 0 4px 8px rgba(61, 55, 45, 0.06);
+  --shadow-xl: 0 24px 40px rgba(61, 55, 45, 0.10), 0 8px 16px rgba(61, 55, 45, 0.06);
 
   /* ── Border Radius ── */
-  --radius-xs: 4px;
+  --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
   --radius-full: 9999px;
 
-  /* ── Spacing Scale ── */
+  /* ── Spacing ── */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
@@ -75,21 +65,53 @@
   --transition-base: 250ms ease;
   --transition-slow: 350ms ease;
 
-  /* ── Element Plus 主题跟随 ── */
-  --el-color-primary: #0EA5E9;
-  --el-color-primary-light-3: #38BDF8;
-  --el-color-primary-light-5: #7DD3FC;
-  --el-color-primary-light-7: #BAE6FD;
-  --el-color-primary-light-8: #E0F2FE;
-  --el-color-primary-light-9: #F0F9FF;
-  --el-color-primary-dark-2: #0284C7;
+  /* ── Element Plus Theme ── */
+  --el-color-primary: #0F766E;
+  --el-color-primary-light-3: #3E9A91;
+  --el-color-primary-light-5: #6FB4AE;
+  --el-color-primary-light-7: #A5CFCB;
+  --el-color-primary-light-8: #C3DFDC;
+  --el-color-primary-light-9: #E7F0EE;
+  --el-color-primary-dark-2: #0B5F55;
+  --el-color-success: #3F7D5E;
+  --el-color-warning: #B07D2A;
+  --el-color-danger: #B4493C;
+  --el-color-error: #B4493C;
+  --el-color-info: #56739A;
   --el-border-radius-base: 8px;
+  --el-bg-color: #FFFDF9;
+  --el-bg-color-overlay: #FFFDF9;
+  --el-bg-color-page: #F5F0E7;
+  --el-fill-color-blank: #FFFDF9;
+  --el-fill-color-light: #F3EEE3;
+  --el-fill-color-lighter: #F3EEE3;
+  --el-fill-color-extra-light: #FAF6EC;
+  --el-border-color: #E6DED0;
+  --el-border-color-light: #E6DED0;
+  --el-border-color-lighter: #EFE9DD;
+  --el-border-color-extra-light: #EFE9DD;
+  --el-text-color-primary: #26221C;
+  --el-text-color-regular: #615B50;
+  --el-text-color-secondary: #756F63;
+  --el-text-color-placeholder: #938C7E;
+  --el-text-color-disabled: #B4AC9C;
+  --el-box-shadow: 0 12px 24px rgba(61, 55, 45, 0.09), 0 4px 8px rgba(61, 55, 45, 0.06);
+  --el-box-shadow-light: 0 4px 10px rgba(61, 55, 45, 0.07), 0 2px 4px rgba(61, 55, 45, 0.05);
+  --el-box-shadow-lighter: 0 1px 3px rgba(61, 55, 45, 0.06), 0 1px 2px rgba(61, 55, 45, 0.04);
+  --el-table-border-color: #E6DED0;
+  --el-table-header-bg-color: #EFE9DD;
+  --el-table-header-text-color: #615B50;
+  --el-table-row-hover-bg-color: #E7F0EE;
+  --el-table-bg-color: #FFFDF9;
+  --el-table-tr-bg-color: #FFFDF9;
+  --el-table-expanded-cell-bg-color: #FAF6EC;
+  --el-disabled-bg-color: #F3EEE3;
+  --el-disabled-border-color: #E6DED0;
+  --el-disabled-text-color: #B4AC9C;
+  --el-mask-color: rgba(61, 55, 45, 0.35);
 }
 
-/* ================================================================
-   Global Reset & Base
-   ================================================================ */
-
+/* ── Reset & Base ── */
 *,
 *::before,
 *::after {
@@ -105,12 +127,10 @@ html {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-               'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica,
-               Arial, sans-serif;
+  font-family: 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Microsoft YaHei', 'Segoe UI', sans-serif;
   background:
-    radial-gradient(1200px 520px at 88% -8%, rgba(14,165,233,0.07), transparent 60%),
-    radial-gradient(1000px 600px at -5% 105%, rgba(99,102,241,0.07), transparent 60%),
+    radial-gradient(1200px 520px at 88% -8%, rgba(15, 118, 110, 0.05), transparent 60%),
+    radial-gradient(1000px 600px at -5% 105%, rgba(176, 125, 42, 0.05), transparent 60%),
     var(--color-bg);
   background-attachment: fixed;
   color: var(--color-text-primary);
@@ -123,13 +143,10 @@ a {
   transition: color var(--transition-fast);
 }
 a:hover {
-  color: var(--color-primary-light);
+  color: var(--color-primary-hover);
 }
 
-/* ================================================================
-   Scrollbar Styling
-   ================================================================ */
-
+/* ── Scrollbar ── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -138,20 +155,17 @@ a:hover {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(61, 55, 45, 0.18);
   border-radius: var(--radius-full);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(61, 55, 45, 0.30);
 }
 
-/* ================================================================
-   Layout Helpers
-   ================================================================ */
-
+/* ── Layout Helpers ── */
 .page-container {
-  padding: var(--space-lg);
-  max-width: 1280px;
+  padding: var(--space-lg) var(--space-xl);
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -160,8 +174,7 @@ a:hover {
   align-items: center;
   gap: 12px;
   margin-bottom: var(--space-lg);
-  padding-bottom: var(--space-md);
-  border-bottom: 2px solid var(--color-border-light);
+  flex-wrap: wrap;
 }
 
 .page-header-icon {
@@ -173,26 +186,26 @@ a:hover {
   justify-content: center;
   font-size: 20px;
   flex-shrink: 0;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 
 .page-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--color-text-primary);
   margin: 0;
   letter-spacing: -0.3px;
+  line-height: 1.25;
 }
 
 .page-subtitle {
   font-size: 13px;
   color: var(--color-text-tertiary);
-  margin-top: var(--space-xs);
+  margin-top: 4px;
 }
 
-/* ================================================================
-   Card System
-   ================================================================ */
-
+/* ── Card System ── */
 .content-card {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
@@ -207,7 +220,6 @@ a:hover {
   box-shadow: var(--shadow-md);
 }
 
-/* Card with colored accent top border */
 .card-accent {
   border-top: 3px solid var(--color-primary);
 }
@@ -224,7 +236,6 @@ a:hover {
   border-top-color: var(--color-info);
 }
 
-/* Card with colored left border */
 .card-left-accent {
   border-left: 4px solid var(--color-primary);
 }
@@ -238,13 +249,10 @@ a:hover {
   border-left-color: var(--color-danger);
 }
 
-/* ================================================================
-   Stat Cards
-   ================================================================ */
-
+/* ── Stat Cards ── */
 .stat-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: var(--space-md);
   margin-bottom: var(--space-lg);
 }
@@ -253,23 +261,22 @@ a:hover {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   padding: 20px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
   display: flex;
   align-items: center;
   gap: 16px;
   transition: transform var(--transition-base), box-shadow var(--transition-base);
   border: 1px solid var(--color-border-light);
-  cursor: default;
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
 }
 
 .stat-icon {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
@@ -284,6 +291,7 @@ a:hover {
   color: var(--color-text-primary);
   line-height: 1.2;
   letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
@@ -292,22 +300,17 @@ a:hover {
   margin-top: 2px;
 }
 
-/* Pre-built stat icon colors */
 .stat-icon--blue   { background: var(--color-primary-bg); color: var(--color-primary); }
 .stat-icon--green  { background: var(--color-success-bg); color: var(--color-success); }
 .stat-icon--orange { background: var(--color-warning-bg); color: var(--color-warning); }
 .stat-icon--red    { background: var(--color-danger-bg);  color: var(--color-danger); }
 .stat-icon--purple { background: var(--color-info-bg);    color: var(--color-info); }
 
-/* ================================================================
-   Button Enhancements
-   ================================================================ */
-
-/* Make Element Plus buttons slightly rounder */
+/* ── Button Enhancements ── */
 .el-button {
-  border-radius: var(--radius-sm) !important;
+  border-radius: var(--radius-sm);
   font-weight: 500;
-  transition: all var(--transition-fast) !important;
+  transition: all var(--transition-fast);
 }
 
 .el-button:hover {
@@ -319,26 +322,30 @@ a:hover {
 }
 
 .el-button--primary {
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
 }
 .el-button--primary:hover {
-  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.32);
 }
-
+.el-button--primary:active {
+  background: var(--color-primary-active);
+  border-color: var(--color-primary-active);
+}
 .el-button--success {
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
-}
-.el-button--danger {
-  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+  box-shadow: 0 2px 6px rgba(63, 125, 94, 0.22);
 }
 .el-button--warning {
-  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.25);
+  box-shadow: 0 2px 6px rgba(176, 125, 42, 0.22);
+}
+.el-button--danger {
+  box-shadow: 0 2px 6px rgba(180, 73, 60, 0.20);
 }
 
-/* ================================================================
-   Table Enhancements
-   ================================================================ */
-
+/* ── Table Enhancements ── */
 .el-table {
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -349,7 +356,6 @@ a:hover {
   color: var(--color-text-secondary);
   font-weight: 600;
   font-size: 13px;
-  border-bottom: 2px solid var(--color-border) !important;
 }
 
 .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
@@ -360,39 +366,42 @@ a:hover {
   background: var(--color-primary-bg) !important;
 }
 
-/* ================================================================
-   Form Enhancements
-   ================================================================ */
+.el-table .cell {
+  font-variant-numeric: tabular-nums;
+}
 
-.el-input__wrapper {
-  border-radius: var(--radius-sm) !important;
+/* ── Form Enhancements ── */
+.el-input__wrapper,
+.el-textarea__inner {
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: 0 0 0 1px var(--color-border) inset;
   transition: all var(--transition-fast);
 }
 
 .el-input__wrapper:hover {
-  box-shadow: 0 0 0 1px var(--color-border) inset;
+  box-shadow: 0 0 0 1px #CFC7B8 inset;
+}
+
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--color-primary) inset, 0 0 0 3px rgba(15, 118, 110, 0.12) !important;
 }
 
 .el-select .el-input__wrapper {
-  border-radius: var(--radius-sm) !important;
+  border-radius: var(--radius-sm);
 }
 
-/* ================================================================
-   Tag Enhancements
-   ================================================================ */
-
+/* ── Tag Enhancements ── */
 .el-tag {
   border-radius: var(--radius-xs);
   font-weight: 500;
 }
 
-/* ================================================================
-   Dialog Enhancements
-   ================================================================ */
-
+/* ── Dialog Enhancements ── */
 .el-dialog {
-  border-radius: var(--radius-lg) !important;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
+  background: var(--color-surface);
 }
 
 .el-dialog__header {
@@ -411,18 +420,12 @@ a:hover {
   padding: 14px 24px;
 }
 
-/* ================================================================
-   Empty State Enhancements
-   ================================================================ */
-
+/* ── Empty State ── */
 .el-empty__description {
   color: var(--color-text-muted);
 }
 
-/* ================================================================
-   Tabs Enhancements
-   ================================================================ */
-
+/* ── Tabs ── */
 .el-tabs__nav-wrap::after {
   height: 1px;
   background: var(--color-border);
@@ -433,26 +436,35 @@ a:hover {
   transition: color var(--transition-fast);
 }
 
-/* ================================================================
-   Alert Enhancements
-   ================================================================ */
-
-.el-alert {
-  border-radius: var(--radius-md) !important;
+.el-tabs__item.is-active {
+  color: var(--color-primary);
 }
 
-/* ================================================================
-   Loading / Skeleton
-   ================================================================ */
+/* ── Alert ── */
+.el-alert {
+  border-radius: var(--radius-md);
+}
 
+/* ── Popover / Dropdown / Message ── */
+.el-popover,
+.el-dropdown-menu,
+.el-message-box {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-lg);
+}
+
+.el-message {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ── Loading ── */
 .el-loading-mask {
   border-radius: var(--radius-md);
 }
 
-/* ================================================================
-   Utility Classes
-   ================================================================ */
-
+/* ── Utility Classes ── */
 .text-muted {
   color: var(--color-text-muted);
 }
@@ -477,19 +489,10 @@ a:hover {
 .mb-md { margin-bottom: var(--space-md); }
 .mb-lg { margin-bottom: var(--space-lg); }
 
-/* ================================================================
-   Animations
-   ================================================================ */
-
+/* ── Animations ── */
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeIn {
@@ -498,29 +501,14 @@ a:hover {
 }
 
 @keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
-.animate-fade-in-up {
-  animation: fadeInUp 0.4s ease-out;
-}
+.animate-fade-in-up { animation: fadeInUp 0.4s ease-out; }
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+.animate-scale-in { animation: scaleIn 0.25s ease-out; }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.25s ease-out;
-}
-
-/* Staggered children animation helper */
 .stagger-children > * {
   opacity: 0;
   animation: fadeInUp 0.4s ease-out forwards;
@@ -532,10 +520,7 @@ a:hover {
 .stagger-children > *:nth-child(5) { animation-delay: 0.24s; }
 .stagger-children > *:nth-child(6) { animation-delay: 0.30s; }
 
-/* ================================================================
-   Page Transition (used by App.vue)
-   ================================================================ */
-
+/* ── Page Transition ── */
 .page-fade-enter-active,
 .page-fade-leave-active {
   transition: opacity 0.25s ease, transform 0.25s ease;
@@ -551,25 +536,19 @@ a:hover {
   transform: translateY(-10px);
 }
 
-/* ================================================================
-   Responsive
-   ================================================================ */
-
+/* ── Responsive ── */
 @media (max-width: 768px) {
   :root {
     --space-lg: 16px;
+    --space-xl: 20px;
   }
 
   .page-container {
-    padding: 12px;
+    padding: 16px;
   }
 
   .page-title {
-    font-size: 19px;
-  }
-
-  .page-header {
-    margin-bottom: 16px;
+    font-size: 20px;
   }
 
   .stat-cards {
