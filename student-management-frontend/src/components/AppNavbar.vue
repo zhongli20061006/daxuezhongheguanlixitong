@@ -1,12 +1,13 @@
 <template>
   <div class="app-layout">
-    <!-- Header Bar (48px) -->
+    <!-- Header Bar (56px) -->
     <header class="app-header">
       <div class="header-left">
         <el-icon class="toggle-btn" :size="20" @click="collapsed = !collapsed">
           <Fold v-if="!collapsed" />
           <Expand v-else />
         </el-icon>
+        <div class="brand-mark" aria-hidden="true">智</div>
         <span class="header-title">智伴校园</span>
       </div>
       <div class="header-right">
@@ -92,7 +93,7 @@
       </main>
     </div>
 
-    <!-- Mobile Bottom Tabs (≤768px) -->
+    <!-- Mobile Bottom Tabs (56px) -->
     <div class="mobile-tabs">
       <router-link
         v-for="tab in mobileTabs"
@@ -138,7 +139,7 @@ const latestNotifications = ref([])
 let ws = null
 let pollTimer = null
 
-/* ───── Menu items by role ───── */
+/* ── Menu items by role ── */
 const menuItems = computed(() => {
   const role = auth.role
   const agentItem = { path: '/', label: 'AI 助手', icon: ChatDotRound }
@@ -180,7 +181,7 @@ const menuItems = computed(() => {
   return menus[role] || []
 })
 
-/* ───── Mobile bottom tabs ───── */
+/* ── Mobile bottom tabs ── */
 const mobileTabs = computed(() => {
   const role = auth.role
   const defaultPage = '/'
@@ -201,12 +202,12 @@ const mobileTabs = computed(() => {
   ]
 })
 
-/* ───── Active route matching ───── */
+/* ── Active route matching ── */
 function isActive(path) {
   return route.path === path || route.path.startsWith(path + '/')
 }
 
-/* ───── Event handlers ───── */
+/* ── Event handlers ── */
 function handleCommand(cmd) {
   if (cmd === 'profile') router.push('/profile')
   else if (cmd === 'logout') { auth.logout(); router.push('/login') }
@@ -214,7 +215,7 @@ function handleCommand(cmd) {
 
 function goNotifications() { router.push('/notifications') }
 
-/* ───── Notification logic ───── */
+/* ── Notification logic ── */
 async function loadNotifications() {
   try {
     const [unreadRes, listRes] = await Promise.all([
@@ -256,29 +257,24 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* ───── Layout ───── */
+/* ── Layout ── */
 .app-layout {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(1200px 520px at 88% -8%, rgba(14,165,233,0.07), transparent 60%),
-    radial-gradient(1000px 600px at -5% 105%, rgba(99,102,241,0.07), transparent 60%),
-    linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
-  background-attachment: fixed;
+  background: var(--color-bg);
 }
 
-/* ───── Header (48px) ───── */
+/* ── Header (56px) ── */
 .app-header {
-  height: 48px;
-  min-height: 48px;
-  background: var(--color-header-bg);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  color: #fff;
+  height: 56px;
+  min-height: 56px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 20px;
   z-index: 100;
   position: relative;
 }
@@ -286,24 +282,38 @@ onUnmounted(() => {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .toggle-btn {
   cursor: pointer;
-  color: rgba(255,255,255,0.8);
+  color: var(--color-text-secondary);
   transition: color var(--transition-fast), background var(--transition-fast);
-  padding: 4px;
+  padding: 6px;
   border-radius: var(--radius-sm);
 }
 .toggle-btn:hover {
-  color: #fff;
-  background: rgba(255,255,255,0.1);
+  color: var(--color-text-primary);
+  background: var(--color-bg-alt);
 }
 
 .header-title {
   font-size: 16px;
   font-weight: 700;
+  color: var(--color-text-primary);
   white-space: nowrap;
   letter-spacing: 0.5px;
 }
@@ -316,114 +326,101 @@ onUnmounted(() => {
 
 .bell-btn {
   cursor: pointer;
+  color: var(--color-text-secondary);
   line-height: 1;
-  padding: 4px;
+  padding: 6px;
   border-radius: var(--radius-sm);
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 .bell-btn:hover {
-  background: rgba(255,255,255,0.1);
+  background: var(--color-bg-alt);
+  color: var(--color-text-primary);
 }
 
 .avatar {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.2);
-  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 13px;
-  color: #fff;
+  font-weight: 600;
   cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition: background var(--transition-fast);
 }
 .avatar:hover {
-  background: rgba(255,255,255,0.3);
-  border-color: rgba(255,255,255,0.4);
+  background: #D7E7E4;
 }
 
-/* ───── Body (sidebar + content) ───── */
+/* ── Body (sidebar + content) ── */
 .app-body {
   display: flex;
   flex: 1;
   min-height: 0;
 }
 
-/* ───── Sidebar ───── */
+/* ── Sidebar ── */
 .app-sidebar {
-  width: 200px;
-  min-height: calc(100vh - 48px);
-  background: var(--color-sidebar-bg);
+  width: 216px;
+  min-height: calc(100vh - 56px);
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
   transition: width var(--transition-base);
   overflow-y: auto;
   overflow-x: hidden;
   flex-shrink: 0;
   position: relative;
-  border-right: 1px solid rgba(255,255,255,0.05);
-  box-shadow: 10px 0 26px -16px rgba(15, 23, 42, 0.5);
-}
-
-/* Subtle glow gradient at the top of the sidebar */
-.app-sidebar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: linear-gradient(180deg, rgba(14,165,233,0.10) 0%, transparent 100%);
-  pointer-events: none;
 }
 
 .app-sidebar.collapsed {
-  width: 60px;
+  width: 64px;
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  padding: 8px 0;
+  padding: 12px 10px;
 }
 
 .sidebar-section {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .sidebar-divider {
   height: 1px;
-  background: rgba(255,255,255,0.08);
-  margin: 8px 12px;
+  background: var(--color-border-light);
+  margin: 10px 8px;
 }
 
-/* ───── Sidebar Items ───── */
 .sidebar-item {
   display: flex;
   align-items: center;
-  padding: 12px 20px;
-  color: rgba(255,255,255,0.65);
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
   cursor: pointer;
   text-decoration: none;
   font-size: 14px;
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
-  border-left: 3px solid transparent;
+  transition: background var(--transition-fast), color var(--transition-fast);
   white-space: nowrap;
 }
 .sidebar-item:hover {
-  background: var(--color-sidebar-hover);
-  color: #fff;
+  background: var(--color-bg-alt);
+  color: var(--color-text-primary);
 }
 .sidebar-item.active {
-  background: linear-gradient(90deg, rgba(14,165,233,0.14) 0%, rgba(99,102,241,0.05) 100%);
-  color: #fff;
-  border-left-color: var(--color-primary-light);
-  box-shadow: inset 4px 0 0 0 var(--color-primary-light);
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  font-weight: 600;
 }
 .sidebar-item .el-icon {
   font-size: 20px;
-  margin-right: 12px;
   min-width: 20px;
 }
 
@@ -432,19 +429,14 @@ onUnmounted(() => {
   transition: opacity var(--transition-fast);
 }
 
-/* Collapsed state */
 .app-sidebar.collapsed .sidebar-item {
   justify-content: center;
-  padding: 14px 0;
-}
-.app-sidebar.collapsed .sidebar-item .el-icon {
-  margin-right: 0;
+  padding: 12px 0;
 }
 .app-sidebar.collapsed .sidebar-label {
   display: none;
 }
 
-/* Sidebar badge (通知中心) */
 .sidebar-badge :deep(.el-badge__content) {
   border: none;
   font-size: 11px;
@@ -454,49 +446,23 @@ onUnmounted(() => {
   padding: 0 4px;
 }
 
-/* ───── Staggered Slide-in for Sidebar Items ───── */
-@keyframes sidebarItemFadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.sidebar-section .sidebar-item {
-  animation: sidebarItemFadeIn 0.45s ease both;
-}
-.sidebar-section .sidebar-item:nth-child(1)  { animation-delay: 0s; }
-.sidebar-section .sidebar-item:nth-child(2)  { animation-delay: 0.04s; }
-.sidebar-section .sidebar-item:nth-child(3)  { animation-delay: 0.08s; }
-.sidebar-section .sidebar-item:nth-child(4)  { animation-delay: 0.12s; }
-.sidebar-section .sidebar-item:nth-child(5)  { animation-delay: 0.16s; }
-.sidebar-section .sidebar-item:nth-child(6)  { animation-delay: 0.20s; }
-.sidebar-section .sidebar-item:nth-child(7)  { animation-delay: 0.24s; }
-.sidebar-section .sidebar-item:nth-child(8)  { animation-delay: 0.28s; }
-.sidebar-section .sidebar-item:nth-child(9)  { animation-delay: 0.32s; }
-.sidebar-section .sidebar-item:nth-child(10) { animation-delay: 0.36s; }
-
-/* ───── Main Content ───── */
+/* ── Main Content ── */
 .app-main {
   flex: 1;
-  min-height: calc(100vh - 48px);
+  min-height: calc(100vh - 56px);
   transition: margin-left 0.25s ease;
   overflow-y: auto;
 }
 
-/* ───── Mobile Bottom Tabs ───── */
+/* ── Mobile Bottom Tabs ── */
 .mobile-tabs {
   display: none;
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--color-sidebar-bg);
-  border-top: 1px solid rgba(255,255,255,0.06);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
   height: 56px;
   z-index: 1000;
   align-items: center;
@@ -510,24 +476,39 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  color: rgba(255,255,255,0.5);
+  color: var(--color-text-muted);
   text-decoration: none;
   font-size: 11px;
   transition: color var(--transition-fast);
   flex: 1;
   height: 100%;
   position: relative;
-  border-top: 2px solid transparent;
 }
 .mobile-tab.active {
-  color: var(--color-primary-light);
-  border-top-color: var(--color-primary-light);
+  color: var(--color-primary);
 }
 .mobile-label {
   line-height: 1;
 }
 
-/* ───── Responsive ───── */
+/* ── Notification popover ── */
+.notif-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border-light);
+  cursor: pointer;
+}
+.notif-item:last-child {
+  border-bottom: none;
+}
+.notif-item:hover {
+  background: var(--color-bg-alt);
+}
+
+.el-dropdown {
+  line-height: 1;
+}
+
+/* ── Responsive ── */
 @media (max-width: 768px) {
   .app-sidebar {
     display: none;
@@ -538,26 +519,5 @@ onUnmounted(() => {
   .app-main {
     padding-bottom: 56px;
   }
-  .app-main.collapsed {
-    /* no sidebar on mobile, so no margin change needed */
-  }
-}
-
-/* ───── Notification popover (inherited style) ───── */
-.notif-item {
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
-  cursor: pointer;
-}
-.notif-item:last-child {
-  border-bottom: none;
-}
-.notif-item:hover {
-  background: #f9fafb;
-}
-
-/* ───── Element Plus dropdown trigger inline fix ───── */
-.el-dropdown {
-  line-height: 1;
 }
 </style>
