@@ -1,13 +1,9 @@
 <template>
   <div class="page-container">
     <!-- Time-based Greeting -->
-    <div class="greeting-card">
-      <el-icon :size="24" class="greeting-icon">
-        <Sunny v-if="greetingType === 'morning'" />
-        <Coffee v-else-if="greetingType === 'afternoon'" />
-        <Moon v-else />
-      </el-icon>
-      <span class="greeting-text">{{ greetingText }}，{{ auth.name || '用户' }}</span>
+    <div class="greeting-block">
+      <h1 class="greeting-title">{{ greetingText }}，{{ auth.name || '用户' }}</h1>
+      <p class="greeting-date">{{ todayText }}</p>
     </div>
 
     <!-- Stats Row Skeleton -->
@@ -81,7 +77,7 @@
         </div>
         <template v-else>
           <template v-if="todayCourses.length">
-            <div v-for="course in todayCourses" :key="course.id" class="schedule-item" :style="{ borderLeftColor: '#409EFF' }">
+            <div v-for="course in todayCourses" :key="course.id" class="schedule-item">
               <div class="schedule-time">{{ periodTimeMap[course.period] || course.period }}</div>
               <div class="schedule-info">
                 <div class="schedule-name">{{ course.course_name }}</div>
@@ -122,7 +118,7 @@
     </div>
 
     <!-- Quick Entry Skeleton -->
-    <div v-if="pageLoading" class="quick-entries">
+    <div v-if="pageLoading" class="quick-links">
       <div v-for="i in 3" :key="i" class="skeleton-entry-card skeleton-loading">
         <div class="skeleton-entry-icon"></div>
         <div class="skeleton-entry-label"></div>
@@ -130,25 +126,22 @@
       </div>
     </div>
 
-    <!-- Quick Entry Cards -->
-    <div v-else class="quick-entries">
-      <div class="entry-card entry-card--selection" @click="$router.push('/selection')">
-        <div class="entry-border entry-border--blue"></div>
-        <el-icon :size="36" color="#409EFF"><Tickets /></el-icon>
-        <div class="entry-label">选课中心</div>
-        <div class="entry-badge">{{ enrolledCount }}门已选</div>
+    <!-- Quick Entry Links -->
+    <div v-else class="quick-links">
+      <div class="quick-link" @click="$router.push('/selection')">
+        <el-icon :size="18"><Tickets /></el-icon>
+        <span class="quick-label">选课中心</span>
+        <span class="quick-meta">{{ enrolledCount }}门已选</span>
       </div>
-      <div class="entry-card entry-card--leave" @click="$router.push('/leaves')">
-        <div class="entry-border entry-border--orange"></div>
-        <el-icon :size="36" color="#E6A23C"><Document /></el-icon>
-        <div class="entry-label">请假申请</div>
-        <div class="entry-badge">{{ pendingLeaveCount }}条待批</div>
+      <div class="quick-link" @click="$router.push('/leaves')">
+        <el-icon :size="18"><Document /></el-icon>
+        <span class="quick-label">请假申请</span>
+        <span class="quick-meta">{{ pendingLeaveCount }}条待批</span>
       </div>
-      <div class="entry-card entry-card--repair" @click="$router.push('/repairs')">
-        <div class="entry-border entry-border--green"></div>
-        <el-icon :size="36" color="#67C23A"><Tools /></el-icon>
-        <div class="entry-label">报修维修</div>
-        <div class="entry-badge">提交报修</div>
+      <div class="quick-link" @click="$router.push('/repairs')">
+        <el-icon :size="18"><Tools /></el-icon>
+        <span class="quick-label">报修维修</span>
+        <span class="quick-meta">提交报修</span>
       </div>
     </div>
   </div>
@@ -162,9 +155,12 @@ import { getNotifications, getUnreadCount } from '../api/notification'
 import { getMyCourses } from '../api/selection'
 import { getMyLeaves } from '../api/leave'
 import { isWeekInRange } from '../utils/weekParser'
-import { Clock, Bell, Tickets, Document, Tools, Sunny, Moon, Coffee } from '@element-plus/icons-vue'
+import { Clock, Bell, Tickets, Document, Tools } from '@element-plus/icons-vue'
 
 const auth = useAuthStore()
+
+// ── Today's date ──
+const todayText = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
 
 // ── Data state ──
 const pageLoading = ref(true)
@@ -300,52 +296,23 @@ onMounted(loadData)
 
 <style scoped>
 /* ── Greeting ── */
-.greeting-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 40%, #1E40AF 100%);
-  border-radius: 14px;
-  padding: 24px 32px;
+.greeting-block {
   margin-bottom: 24px;
-  color: #fff;
-  box-shadow: 0 4px 20px rgba(30, 58, 95, 0.2);
-  position: relative;
-  overflow: hidden;
 }
-.greeting-card::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -20%;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
-  border-radius: 50%;
+.greeting-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.5px;
+  margin: 0;
 }
-.greeting-card::after {
-  content: '';
-  position: absolute;
-  bottom: -30%;
-  left: 30%;
-  width: 150px;
-  height: 150px;
-  background: radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%);
-  border-radius: 50%;
-}
-.greeting-icon {
-  flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-  z-index: 1;
-}
-.greeting-text {
-  font-size: 21px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  z-index: 1;
+.greeting-date {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  margin: 6px 0 0;
 }
 
-/* ── Stats Row (overrides global.css .stat-cards) ── */
+/* ── Stats Row ── */
 .stat-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -353,66 +320,66 @@ onMounted(loadData)
   margin-bottom: 24px;
 }
 .stat-card {
-  background: #fff;
-  border-radius: 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
   padding: 18px 22px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  box-shadow: var(--shadow-xs);
   display: flex;
   align-items: center;
   gap: 16px;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
-  border: 1px solid #F3F4F6;
-  cursor: default;
+  border: 1px solid var(--color-border-light);
 }
 .stat-card:hover {
-  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 .stat-icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-.stat-icon--blue { background: var(--color-primary-bg, #F0F9FF); color: var(--color-primary, #0EA5E9); }
-.stat-icon--green { background: var(--color-success-bg, #ECFDF5); color: var(--color-success, #059669); }
-.stat-icon--orange { background: var(--color-warning-bg, #FFFBEB); color: var(--color-warning, #D97706); }
-.stat-icon--purple { background: var(--color-info-bg, #EEF2FF); color: var(--color-info, #6366F1); }
+.stat-icon--blue { background: var(--color-primary-bg); color: var(--color-primary); }
+.stat-icon--green { background: var(--color-success-bg); color: var(--color-success); }
+.stat-icon--orange { background: var(--color-warning-bg); color: var(--color-warning); }
+.stat-icon--purple { background: var(--color-info-bg); color: var(--color-info); }
 .stat-value {
   font-size: 26px;
   font-weight: 700;
-  color: var(--color-text-primary, #111827);
+  color: var(--color-text-primary);
   line-height: 1.2;
   letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
 }
 .stat-label {
   font-size: 13px;
-  color: var(--color-text-tertiary, #6B7280);
+  color: var(--color-text-tertiary);
   margin-top: 3px;
 }
 
-/* ── Dashboard Two-Column Grid ── */
+/* ── Dashboard Two-Column Grid (asymmetric) ── */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
   margin-bottom: 24px;
 }
 .dashboard-card {
-  background: #fff;
-  border-radius: 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
   padding: 22px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  box-shadow: var(--shadow-xs);
   display: flex;
   flex-direction: column;
-  border: 1px solid #F3F4F6;
+  border: 1px solid var(--color-border-light);
   transition: box-shadow 0.25s ease;
 }
 .dashboard-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-sm);
 }
 .card-header {
   display: flex;
@@ -420,13 +387,11 @@ onMounted(loadData)
   gap: 8px;
   font-size: 16px;
   font-weight: 700;
-  color: var(--color-text-primary, #111827);
+  color: var(--color-text-primary);
   padding-bottom: 14px;
   margin-bottom: 14px;
-  border-bottom: 2px solid #F3F4F6;
+  border-bottom: 1px solid var(--color-border-light);
 }
-.card-schedule { border-top: 3px solid var(--color-primary, #0EA5E9); }
-.card-notification { border-top: 3px solid var(--color-warning, #D97706); }
 
 /* ── Schedule Items ── */
 .schedule-item {
@@ -434,54 +399,61 @@ onMounted(loadData)
   gap: 14px;
   padding: 14px 0 14px 14px;
   margin-bottom: 10px;
-border-left: 3px solid var(--color-primary, #0EA5E9);
-  border-radius: 0 8px 8px 0;
-  background: var(--color-bg-alt, #F8FAFC);
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--color-bg-alt);
   transition: background 0.2s ease, transform 0.2s ease;
 }
 .schedule-item:last-child { margin-bottom: 0; }
 .schedule-item:hover {
-  background: var(--color-primary-bg, #F0F9FF);
+  background: var(--color-primary-bg);
   transform: translateX(4px);
 }
 .schedule-time {
   font-size: 13px;
   font-weight: 600;
-  color: #409EFF;
+  color: var(--color-primary);
   white-space: nowrap;
   min-width: 80px;
   padding-top: 1px;
+  font-variant-numeric: tabular-nums;
 }
 .schedule-info { flex: 1; min-width: 0; }
 .schedule-name {
   font-size: 14px;
   font-weight: 600;
-  color: #1F2937;
+  color: var(--color-text-primary);
 }
 .schedule-place {
   font-size: 12px;
-  color: #6B7280;
+  color: var(--color-text-secondary);
   margin-top: 2px;
 }
 
 /* ── Notification Items ── */
 .notif-item {
   padding: 10px 0;
-  border-bottom: 1px solid #F3F4F6;
+  border-bottom: 1px solid var(--color-border-light);
   cursor: pointer;
   transition: background 0.15s;
 }
 .notif-item:last-of-type { border-bottom: none; }
-.notif-item:hover { background: #FFFBEB; margin: 0 -12px; padding-left: 12px; padding-right: 12px; border-radius: 6px; }
+.notif-item:hover {
+  background: var(--color-bg-alt);
+  margin: 0 -12px;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-radius: var(--radius-sm);
+}
 .notif-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1F2937;
+  color: var(--color-text-primary);
   margin-bottom: 3px;
 }
 .notif-content {
   font-size: 12px;
-  color: #6B7280;
+  color: var(--color-text-secondary);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -490,69 +462,52 @@ border-left: 3px solid var(--color-primary, #0EA5E9);
 }
 .notif-time {
   font-size: 11px;
-  color: #9CA3AF;
+  color: var(--color-text-muted);
   margin-top: 5px;
 }
 .view-all {
   text-align: right;
   font-size: 13px;
-  color: #409EFF;
+  color: var(--color-primary);
   cursor: pointer;
   padding-top: 12px;
-  border-top: 1px solid #F3F4F6;
+  border-top: 1px solid var(--color-border-light);
   margin-top: auto;
   transition: color 0.15s;
 }
-.view-all:hover { color: var(--color-primary); }
+.view-all:hover { color: var(--color-primary-hover); }
 
-/* ── Quick Entry Cards ── */
-.quick-entries {
+/* ── Quick Entry Links ── */
+.quick-links {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  gap: 16px;
 }
-.entry-card {
-  position: relative;
-  background: #fff;
-  border-radius: 14px;
-  padding: 32px 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+.quick-link {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 12px;
+  padding: 16px 18px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
   cursor: pointer;
-  overflow: hidden;
-  border: 1px solid #F3F4F6;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
-.entry-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+.quick-link:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
 }
-.entry-border {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-}
-.entry-border--blue { background: linear-gradient(90deg, #0EA5E9, #6366F1); }
-.entry-border--orange { background: linear-gradient(90deg, #D97706, #F59E0B); }
-.entry-border--green { background: linear-gradient(90deg, #059669, #10B981); }
-.entry-label {
-  font-size: 16px;
+.quick-label {
+  font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary, #111827);
 }
-.entry-badge {
-  font-size: 13px;
-  color: var(--color-text-tertiary, #6B7280);
-  background: var(--color-bg-alt, #F8FAFC);
-  padding: 4px 16px;
-  border-radius: 20px;
-  border: 1px solid var(--color-border-light, #F3F4F6);
+.quick-meta {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 /* ── Responsive ── */
@@ -561,9 +516,7 @@ border-left: 3px solid var(--color-primary, #0EA5E9);
 }
 @media (max-width: 768px) {
   .dashboard-grid { grid-template-columns: 1fr; }
-  .quick-entries { grid-template-columns: 1fr; }
-  .greeting-card { padding: 16px 20px; }
-  .greeting-text { font-size: 17px; }
+  .quick-links { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .stat-cards { grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -582,10 +535,10 @@ border-left: 3px solid var(--color-primary, #0EA5E9);
 
 /* ── Stats row skeleton ── */
 .stat-card-skeleton {
-  background: #fff;
-  border-radius: 8px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
   padding: 16px 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-xs);
   display: flex;
   align-items: center;
   gap: 14px;
@@ -593,7 +546,7 @@ border-left: 3px solid var(--color-primary, #0EA5E9);
 .skeleton-icon-block {
   width: 42px;
   height: 42px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: #e5e7eb;
   flex-shrink: 0;
 }
@@ -622,7 +575,7 @@ border-left: 3px solid var(--color-primary, #0EA5E9);
   margin-bottom: 8px;
   border-left: 3px solid #e5e7eb;
   border-radius: 0 6px 6px 0;
-  background: #f9fafb;
+  background: var(--color-bg-alt);
 }
 .skeleton-time {
   width: 80px;
@@ -651,7 +604,7 @@ border-left: 3px solid var(--color-primary, #0EA5E9);
 /* ── Notification skeleton ── */
 .skeleton-notif-row {
   padding: 12px 0;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--color-border-light);
 }
 .skeleton-notif-title {
   height: 15px;
@@ -676,10 +629,10 @@ border-left: 3px solid var(--color-primary, #0EA5E9);
 
 /* ── Quick entry skeleton ── */
 .skeleton-entry-card {
-  background: #fff;
-  border-radius: 12px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
   padding: 28px 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-xs);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -689,7 +642,7 @@ border-left: 3px solid var(--color-primary, #0EA5E9);
 .skeleton-entry-icon {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: #e5e7eb;
 }
 .skeleton-entry-label {
@@ -702,6 +655,6 @@ border-left: 3px solid var(--color-primary, #0EA5E9);
   height: 22px;
   width: 60px;
   background: #e5e7eb;
-  border-radius: 12px;
+  border-radius: var(--radius-full);
 }
 </style>
