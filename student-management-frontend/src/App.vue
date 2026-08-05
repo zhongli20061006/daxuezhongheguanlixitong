@@ -29,7 +29,6 @@ onMounted(() => authStore.restoreSession())
 
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Microsoft YaHei', sans-serif; background: #f5f7fa; }
 
 /* ── Page transition ── */
 .page-fade-enter-active, .page-fade-leave-active {
