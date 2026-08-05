@@ -66,8 +66,8 @@ const weekdays = ['周一','周二','周三','周四','周五','周六','周日'
 const periodLabels = ['1-2','3-4','5-6','7-8','9-10']
 const typeMap = { compulsory:'必修', limited:'限选', elective:'选修' }
 const legend = [
-  { text:'必修', bg:'#F0F9FF', color:'#0EA5E9' }, { text:'限选', bg:'#FFFBEB', color:'#D97706' },
-  { text:'选修', bg:'#ECFDF5', color:'#059669' },
+      { text:'必修', bg:'var(--color-primary-bg)', color:'var(--color-primary)' }, { text:'限选', bg:'var(--color-warning-bg)', color:'var(--color-warning)' },
+      { text:'选修', bg:'var(--color-success-bg)', color:'var(--color-success)' },
 ]
 
 const allCourses = computed(() => {
@@ -89,16 +89,16 @@ onMounted(() => store.fetchMySchedule())
 <style scoped>
 .schedule-grid-wrap { overflow-x:auto; }
 .schedule-grid { width:100%; border-collapse:collapse; min-width:700px; }
-.schedule-grid th, .schedule-grid td { border:1px solid #E5E7EB; padding:4px; vertical-align:top; text-align:center; }
-.schedule-grid th { background:#F3F4F6; height:40px; font-weight:600; font-size:13px; }
+    .schedule-grid th, .schedule-grid td { border:1px solid var(--color-border); padding:4px; vertical-align:top; text-align:center; }
+    .schedule-grid th { background: var(--color-bg-alt); height:40px; font-weight:600; font-size:13px; }
 .course-cell { width:13%; min-height:90px; background:#fff; }
-.period-cell { width:70px; background:#F9FAFB; font-size:12px; color:#6B7280; }
+    .period-cell { width:70px; background: var(--color-bg-alt); font-size:12px; color: var(--color-text-tertiary); }
 .course-card { margin:3px 0; padding:6px 8px; border-radius:6px; border-left:4px solid; cursor:pointer; font-size:12px; transition:box-shadow .15s; }
 .course-card:hover { box-shadow:0 2px 8px rgba(0,0,0,.1); }
-.course-card.compulsory { background:#F0F9FF; border-color:#0EA5E9; }
-.course-card.limited { background:#FFFBEB; border-color:#D97706; }
-.course-card.elective { background:#ECFDF5; border-color:#059669; }
+    .course-card.compulsory { background: var(--color-primary-bg); border-color: var(--color-primary); }
+    .course-card.limited { background: var(--color-warning-bg); border-color: var(--color-warning); }
+    .course-card.elective { background: var(--color-success-bg); border-color: var(--color-success); }
 .course-name { font-weight:600; font-size:13px; }
-.course-info { color:#6B7280; font-size:11px; }
+    .course-info { color: var(--color-text-tertiary); font-size:11px; }
 @media (max-width:768px) { .course-cell { min-height:60px; } }
 </style>

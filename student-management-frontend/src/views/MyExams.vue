@@ -12,11 +12,11 @@
       <div v-for="e in exams" :key="e.id" class="content-card card-accent--info" style="display:flex;gap:16px;align-items:flex-start">
         <div style="min-width:80px;text-align:center">
 <div style="font-size:24px;font-weight:700;color:var(--color-primary)">{{ e.date?.slice(5) }}</div>
-          <div style="font-size:13px;color:#6B7280">{{ e.start_time }}-{{ e.end_time }}</div>
+    <div style="font-size:13px;color:var(--color-text-tertiary)">{{ e.start_time }}-{{ e.end_time }}</div>
         </div>
         <div style="flex:1">
           <div style="font-weight:600;font-size:16px;margin-bottom:4px">{{ e.subject_name }}</div>
-          <div style="color:#6B7280;font-size:13px">🏫 {{ e.classroom_name }} | 💺 {{ e.seat_no }}号 | ⏱ {{ e.duration_minutes }}分钟</div>
+    <div style="color:var(--color-text-tertiary);font-size:13px">🏫 {{ e.classroom_name }} | 💺 {{ e.seat_no }}号 | ⏱ {{ e.duration_minutes }}分钟</div>
           <div style="margin-top:4px"><el-tag :type="statusType(e.status)" size="small">{{ e.status }}</el-tag></div>
         </div>
       </div>

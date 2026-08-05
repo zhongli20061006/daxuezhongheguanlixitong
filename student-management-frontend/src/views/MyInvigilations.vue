@@ -5,8 +5,8 @@
     <div v-else style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
       <div v-for="e in exams" :key="e.id" class="content-card">
         <div style="font-weight:600;font-size:15px">{{ e.subject_name }}</div>
-        <div style="color:#6B7280;font-size:13px;margin:4px 0">{{ e.date }} {{ e.start_time }}-{{ e.end_time }}</div>
-        <div style="color:#6B7280;font-size:13px">🏫 {{ e.classroom_name }}</div>
+    <div style="color:var(--color-text-tertiary);font-size:13px;margin:4px 0">{{ e.date }} {{ e.start_time }}-{{ e.end_time }}</div>
+    <div style="color:var(--color-text-tertiary);font-size:13px">🏫 {{ e.classroom_name }}</div>
         <el-tag :type="statusType(e.status)" size="small" style="margin-top:4px">{{ e.status }}</el-tag>
       </div>
     </div>

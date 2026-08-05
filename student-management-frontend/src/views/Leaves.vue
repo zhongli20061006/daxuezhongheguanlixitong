@@ -73,5 +73,5 @@ onMounted(load)
 </script>
 <style scoped>
 .native-date { width:100%; height:32px; border:1px solid #DCDFE6; border-radius:4px; padding:0 8px; font-size:14px; color:#606266; }
-.native-date:focus { outline:none; border-color:#409EFF; }
+    .native-date:focus { outline:none; border-color: var(--color-primary); }
 </style>

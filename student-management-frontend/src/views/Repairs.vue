@@ -24,10 +24,10 @@
           <div v-for="r in repairs" :key="r.id" class="content-card card-left-accent">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <div style="display:flex;gap:8px;"><el-tag size="small">{{ r.type }}</el-tag><el-tag :type="statusType(r.status)" size="small">{{ r.status }}</el-tag></div>
-              <span style="color:#9CA3AF;font-size:12px">{{ r.submit_time }}</span>
+    <span style="color:var(--color-text-muted);font-size:12px">{{ r.submit_time }}</span>
             </div>
             <p style="margin:4px 0"><b>地点：</b>{{ r.location }}</p>
-            <p style="color:#6B7280;font-size:14px">{{ r.description }}</p>
+    <p style="color:var(--color-text-tertiary);font-size:14px">{{ r.description }}</p>
             <div style="margin-top:8px;display:flex;gap:8px">
               <el-button v-if="r.status==='提交'" type="danger" size="small" @click="cancelRepair(r.id)">取消</el-button>
               <el-button v-if="r.status==='已接单'" type="danger" size="small" @click="cancelRepair(r.id)">取消</el-button>

@@ -27,7 +27,7 @@ async function handleChange(){if(newPwd.value.length<6){errorMsg.value='新密�
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-    background: linear-gradient(135deg, #155E75 0%, #4C1D95 100%);
+    background: var(--color-bg);
   padding: 24px;
 }
 

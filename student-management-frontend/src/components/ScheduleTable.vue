@@ -55,7 +55,7 @@ function getCourse(day, slotStart, slotEnd) {
 .course-card { padding: 4px 6px; border-radius: 4px; cursor: pointer; border-left: 3px solid; font-size: 12px; }
 .course-name { font-weight: bold; }
 .course-info { color: #666; font-size: 11px; }
-.type-compulsory { background: #ecf5ff; border-color: #409eff; }
-.type-limited { background: #fdf6ec; border-color: #e6a23c; }
-.type-elective { background: #f0f9eb; border-color: #67c23a; }
+.type-compulsory { background: var(--color-primary-bg); border-color: var(--color-primary); }
+.type-limited { background: var(--color-warning-bg); border-color: var(--color-warning); }
+.type-elective { background: var(--color-success-bg); border-color: var(--color-success); }
 </style>

@@ -26,15 +26,15 @@
               <div class="card-row1">
                 <el-tag :type="c.course_type==='limited'?'warning':'success'" size="small">{{ typeMap[c.course_type] }}</el-tag>
                 <span class="course-title">{{ c.course_name }}</span>
-                <span style="margin-left:auto;color:#6B7280;font-size:13px">{{ c.credit }} 学分</span>
+    <span style="margin-left:auto;color:var(--color-text-tertiary);font-size:13px">{{ c.credit }} 学分</span>
               </div>
               <div class="card-row2">
                 <span>👤 {{ c.teacher_name }}</span><span>🕐 周{{ c.day_of_week }} {{ c.period }}节</span><span>🏫 {{ c.classroom_name }}</span>
               </div>
               <div class="card-row3"><span>📅 {{ c.weeks }}周</span></div>
               <div class="card-row4">
-<el-progress :percentage="capacityPct(c)" :stroke-width="6" :color="c.enrolled >= c.capacity ? '#DC2626' : '#0EA5E9'" style="flex:1;margin-right:12px" />
-                <span style="font-size:12px;color:#6B7280;margin-right:12px">{{ c.enrolled }}/{{ c.capacity }}</span>
+    <el-progress :percentage="capacityPct(c)" :stroke-width="6" :color="c.enrolled >= c.capacity ? 'var(--color-danger)' : 'var(--color-primary)'" style="flex:1;margin-right:12px" />
+    <span style="font-size:12px;color:var(--color-text-tertiary);margin-right:12px">{{ c.enrolled }}/{{ c.capacity }}</span>
                 <el-button v-if="c.selected" type="success" disabled size="small">已选</el-button>
                 <el-button v-else-if="c.enrolled >= c.capacity" type="info" disabled size="small">名额已满</el-button>
                 <el-button v-else type="primary" :loading="enrollingId===c.schedule_id" size="small" @click="handleEnroll(c)">选课</el-button>
@@ -99,8 +99,8 @@ onMounted(() => { selectionStore.fetchAvailableCourses(); selectionStore.fetchMy
 .course-card-item:hover { box-shadow:var(--shadow-md); transform:translateY(-1px); }
 .course-card-item.selected { background:#F0FDF4; border-left-color:var(--color-success); }
 .card-row1 { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-.card-row2 { display:flex; gap:16px; font-size:13px; color:#6B7280; margin-bottom:4px; flex-wrap:wrap; }
-.card-row3 { font-size:12px; color:#9CA3AF; margin-bottom:8px; }
+    .card-row2 { display:flex; gap:16px; font-size:13px; color: var(--color-text-tertiary); margin-bottom:4px; flex-wrap:wrap; }
+    .card-row3 { font-size:12px; color: var(--color-text-muted); margin-bottom:8px; }
 .card-row4 { display:flex; align-items:center; }
 .course-title { font-size:16px; font-weight:600; color:var(--color-text-primary); }
 </style>

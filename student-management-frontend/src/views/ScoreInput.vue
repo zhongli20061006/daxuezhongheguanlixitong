@@ -23,7 +23,7 @@
             <div>将Excel文件拖到此处，或<em>点击上传</em></div>
           </el-upload>
           <el-button type="primary" style="margin-top:12px" :disabled="!fileReady" :loading="uploading" @click="submitImport">确认导入</el-button>
-          <p v-if="importMsg" style="margin-top:8px;color:#059669">{{ importMsg }}</p>
+          <p v-if="importMsg" style="margin-top:8px;color:var(--color-success)">{{ importMsg }}</p>
         </div>
       </el-tab-pane>
     </el-tabs>
@@ -117,7 +117,7 @@ onMounted(loadCourses)
 }
 
 /* ── Empty State / Import Message ── */
-p[style*="color:#059669"] {
+p[style*="color:var(--color-success)"] {
   font-size: 14px;
   font-weight: 500;
   padding: 8px 12px;

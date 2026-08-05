@@ -9,7 +9,7 @@
       </div>
       <div style="flex:1">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <span style="color:#6B7280;font-size:13px">共 {{ filteredItems.length }} 条</span>
+    <span style="color:var(--color-text-tertiary);font-size:13px">共 {{ filteredItems.length }} 条</span>
           <div style="display:flex;gap:8px">
             <el-button type="primary" size="small" @click="handleReadAll" :disabled="!hasUnread">全部已读</el-button>
             <el-button type="danger" size="small" plain @click="handleCleanup" :disabled="!items.length">清除已读</el-button>
@@ -21,10 +21,10 @@
               <div v-if="!item.is_read" class="unread-dot"></div>
               <span :style="{fontWeight:item.is_read?400:700}">{{ item.title }}</span>
             </div>
-            <span style="color:#9CA3AF;font-size:12px;white-space:nowrap">{{ item.created_at }}</span>
+    <span style="color:var(--color-text-muted);font-size:12px;white-space:nowrap">{{ item.created_at }}</span>
             <el-button text type="danger" size="small" @click.stop="handleDelete(item)">删除</el-button>
           </div>
-          <div style="color:#6B7280;font-size:13px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical" @click="handleRead(item)">{{ item.content }}</div>
+    <div style="color:var(--color-text-tertiary);font-size:13px;margin-top:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical" @click="handleRead(item)">{{ item.content }}</div>
         </div>
         <el-empty v-if="!filteredItems.length" description="暂无通知" :image-size="80" />
       </div>
