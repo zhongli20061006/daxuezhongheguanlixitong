@@ -262,7 +262,11 @@ onUnmounted(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--color-bg);
+  background:
+    radial-gradient(1200px 520px at 88% -8%, rgba(37, 99, 235, 0.05), transparent 60%),
+    radial-gradient(1000px 600px at -5% 105%, rgba(176, 125, 42, 0.06), transparent 60%),
+    var(--color-bg);
+  background-attachment: fixed;
 }
 
 /* ── Header (56px) ── */
@@ -289,7 +293,7 @@ onUnmounted(() => {
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  background: var(--color-primary);
+  background: var(--gradient-tech);
   color: #fff;
   display: flex;
   align-items: center;

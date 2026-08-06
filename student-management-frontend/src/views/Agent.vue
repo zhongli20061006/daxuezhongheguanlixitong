@@ -578,6 +578,9 @@ function cancelMsg(m) {
   border-radius: var(--radius-sm) !important;
   font-weight: 500;
 }
+.prompt-tag:hover {
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.18);
+}
 
 .input-bar {
   display: flex;

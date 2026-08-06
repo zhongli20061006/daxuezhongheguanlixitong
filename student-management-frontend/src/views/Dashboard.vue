@@ -343,7 +343,7 @@ onMounted(loadData)
   justify-content: center;
   flex-shrink: 0;
 }
-.stat-icon--blue { background: var(--color-primary-bg); color: var(--color-primary); }
+.stat-icon--blue { background: var(--gradient-tech); color: #fff; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); }
 .stat-icon--green { background: var(--color-success-bg); color: var(--color-success); }
 .stat-icon--orange { background: var(--color-warning-bg); color: var(--color-warning); }
 .stat-icon--purple { background: var(--color-info-bg); color: var(--color-info); }
@@ -475,7 +475,7 @@ onMounted(loadData)
   margin-top: auto;
   transition: color 0.15s;
 }
-.view-all:hover { color: var(--color-primary-hover); }
+.view-all:hover { color: var(--color-tech); }
 
 /* ── Quick Entry Links ── */
 .quick-links {
@@ -496,9 +496,10 @@ onMounted(loadData)
   transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
 .quick-link:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background: var(--color-primary-bg);
+  border-color: var(--color-tech);
+  color: var(--color-tech);
+  background: var(--color-tech-bg);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12);
 }
 .quick-label {
   font-size: 14px;

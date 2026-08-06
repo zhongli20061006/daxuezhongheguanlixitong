@@ -87,7 +87,7 @@ function forgetPwd() {
   height: 48px;
   margin: 0 auto 16px;
   border-radius: 14px;
-  background: var(--color-primary);
+  background: var(--gradient-tech);
   color: #fff;
   display: flex;
   align-items: center;

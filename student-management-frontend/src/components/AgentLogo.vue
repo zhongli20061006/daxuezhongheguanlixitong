@@ -19,7 +19,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, #0F766E, #3E9A91, #0F766E);
+  background: conic-gradient(from 0deg, #0F766E, #2563EB, #0F766E);
   animation: logo-spin 6s linear infinite;
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
   mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
@@ -40,8 +40,8 @@
   height: 9px;
   margin-left: -4.5px;
   border-radius: 50%;
-  background: var(--color-primary);
-  box-shadow: 0 0 10px rgba(15, 118, 110, 0.7);
+  background: var(--color-tech);
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.7);
 }
 
 .logo-core {
