@@ -46,9 +46,11 @@ router.beforeEach(async (to, from, next) => {
     return next()
   }
 
-  // 已登录的会话恢复：尝试从 cookie 或 token 还原
+  // 会话恢复：先恢复本地 token（供 WS/请求头），再由服务端 /auth/me 校验身份
+  // 服务端校验失败会清态，杜绝信任可篡改的 localStorage 角色
   if (!authStore.isLoggedIn) {
-    await authStore.restoreSession()
+    authStore.restoreSession()
+    await authStore.checkAuth()
   }
 
   if (!authStore.isLoggedIn) { NProgress.done(); return next('/login') }

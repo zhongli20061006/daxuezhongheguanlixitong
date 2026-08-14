@@ -234,7 +234,8 @@ async function markAllRead() {
 function connectWS() {
   if (!auth.token) return
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  ws = new WebSocket(`${protocol}://${window.location.hostname}:8000/ws?token=${auth.token}`)
+  // 同源连接：开发走 vite 代理(/ws)，生产走 nginx 反代(/ws)，不硬编码后端端口
+  ws = new WebSocket(`${protocol}://${window.location.host}/ws?token=${auth.token}`)
   ws.onmessage = (e) => {
     try {
       const m = JSON.parse(e.data)

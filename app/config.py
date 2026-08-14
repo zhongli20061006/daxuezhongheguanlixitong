@@ -1,4 +1,11 @@
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
+
+# 已知的示例占位密钥前缀：绝不接受这些值（fail-closed）
+WEAK_SECRET_KEY_PREFIXES = (
+    "change-me-in-production",
+    "your-secret-key-change-in-production",
+)
 
 
 class Settings(BaseSettings):
@@ -27,6 +34,19 @@ class Settings(BaseSettings):
     agent_session_ttl: int = 1800
     agent_session_limit: int = 20
     context_budget_tokens: int = 8000
+
+    @field_validator("secret_key")
+    @classmethod
+    def _validate_secret_key(cls, v: str) -> str:
+        v = (v or "").strip()
+        if len(v) < 32:
+            raise ValueError(
+                "SECRET_KEY 长度须不少于 32 字符；"
+                '生成方式：python -c "import secrets; print(secrets.token_urlsafe(48))"'
+            )
+        if v.startswith(WEAK_SECRET_KEY_PREFIXES):
+            raise ValueError("SECRET_KEY 不能使用示例占位值，请注入随机密钥")
+        return v
 
     class Config:
         env_file = ".env"

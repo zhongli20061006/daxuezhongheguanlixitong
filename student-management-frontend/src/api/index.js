@@ -32,11 +32,10 @@ request.interceptors.response.use(
       if (url.includes('/auth/me') || url.includes('/auth/logout') || url.includes('/auth/login')) {
         return Promise.reject(error)
       }
-      localStorage.removeItem('sms_token')
-      localStorage.removeItem('sms_role')
-      localStorage.removeItem('sms_name')
-      localStorage.removeItem('sms_user_id')
-      localStorage.removeItem('sms_must_change')
+      // 动态导入避免 api/auth ↔ api/index 模块级循环依赖；同时清内存态与 localStorage
+      import('../stores/auth')
+        .then(({ useAuthStore }) => { useAuthStore().clearSession() })
+        .catch(() => {})
       logoutApi().catch(() => {})
       ElMessage.error('登录已过期，请重新登录')
       router.push('/login')

@@ -20,23 +20,33 @@ export const useAuthStore = defineStore('auth', () => {
       name.value = res.name || res.username || ''
       userId.value = res.username || ''
       mustChangePassword.value = !!res.must_change_password
+      // 恢复 token（供 WS/请求头使用，服务端校验通过才保留）
+      if (!token.value) token.value = localStorage.getItem('sms_token') || ''
       return true
     } catch {
-      role.value = ''
-      name.value = ''
-      userId.value = ''
-      mustChangePassword.value = false
+      clearSession()
       return false
     }
   }
 
+  function clearSession() {
+    // 纯本地清态（不调用任何 API），供 401 拦截器与 logout 复用
+    token.value = ''
+    role.value = ''
+    name.value = ''
+    userId.value = ''
+    mustChangePassword.value = false
+    localStorage.removeItem('sms_token')
+    localStorage.removeItem('sms_role')
+    localStorage.removeItem('sms_name')
+    localStorage.removeItem('sms_user_id')
+    localStorage.removeItem('sms_must_change')
+  }
+
   function restoreSession() {
-    // 跨域场景：从 localStorage 恢复登录态（cookie 在跨域下不可用）
+    // 仅用于恢复本地 token（跨域场景下 /auth/me 走 Authorization header）
+    // 角色等敏感状态必须随后经 checkAuth() 由服务端确认，不可直接信任本地值
     token.value = localStorage.getItem('sms_token') || ''
-    role.value = localStorage.getItem('sms_role') || ''
-    name.value = localStorage.getItem('sms_name') || ''
-    userId.value = localStorage.getItem('sms_user_id') || ''
-    mustChangePassword.value = localStorage.getItem('sms_must_change') === 'true'
   }
 
   async function login(username, password) {
@@ -66,19 +76,10 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       await logoutApi()
     } catch { /* ignore */ }
-    token.value = ''
-    role.value = ''
-    name.value = ''
-    userId.value = ''
-    mustChangePassword.value = false
-    localStorage.removeItem('sms_token')
-    localStorage.removeItem('sms_role')
-    localStorage.removeItem('sms_name')
-    localStorage.removeItem('sms_user_id')
-    localStorage.removeItem('sms_must_change')
+    clearSession()
     // 清空智能体会话状态，避免下一个账号看到上一个账号的对话
     useAgentStore().reset()
   }
 
-  return { token, role, name, userId, mustChangePassword, isLoggedIn, isAdmin, login, changePassword, logout, restoreSession, checkAuth }
+  return { token, role, name, userId, mustChangePassword, isLoggedIn, isAdmin, login, changePassword, logout, restoreSession, checkAuth, clearSession }
 })

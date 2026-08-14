@@ -30,3 +30,15 @@ Thumbs.db
 # 临时文件
 *.tmp
 *.log
+
+# AI 代理运行时/内部材料（AGENTS.md 明令禁止提交）
+.omo/
+.superpawers/
+
+# 私有材料：备份 SQL、根目录私人 docx（考核表/设计文档等）
+/backup_*.sql
+/*.docx
+
+# pytest 缓存与残留目录
+.pytest_cache/
+pytest-cache-files-*/

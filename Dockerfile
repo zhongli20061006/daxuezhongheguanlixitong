@@ -31,5 +31,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-# 启动命令：运行迁移 + uvicorn
-CMD sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+# 启动命令：幂等建表（create_all，不重置数据）+ uvicorn
+# 说明：本项目库表由 ORM create_all 管理（与本地开发一致）；种子数据按 README 手动执行 docker-init
+CMD sh -c "python -c 'from app.database import Base, sync_engine; Base.metadata.create_all(bind=sync_engine)' && uvicorn app.main:app --host 0.0.0.0 --port 8000"
