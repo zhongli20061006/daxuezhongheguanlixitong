@@ -9,6 +9,7 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "  教师    : T10001"
     Write-Host "  学生    : S2024001"
     Write-Host "  后勤    : G10001"
+    Write-Host "  智能体  : agent01"
     Write-Host ""
     Write-Host "API 文档: http://localhost:8000/docs"
     Write-Host "前端页面: http://localhost"

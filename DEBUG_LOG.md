@@ -99,7 +99,7 @@ CREATE UNIQUE INDEX uk_approve ON approval_record(leave_id, level);
 
 ---
 
-## 已知问题（v0.4.0 已全部修复）
+## 已知问题（修复版本见各条目标注，v0.7.x 已全部修复）
 
 1. ~~**Element Plus 2.5.x `el-date-picker` + `value-format` 兼容性问题**~~ → ✅ v0.7.1 已修复（改用原生 `<input type="date">`）
 2. ~~**SAEnum 与 MySQL ENUM 不兼容**~~ → ✅ 已修复（`Score.score_type`、`Repair.type`、`Repair.status` 使用 `String` 替代 `SAEnum`）

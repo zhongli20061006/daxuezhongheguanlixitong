@@ -17,7 +17,7 @@
 - 项目：智伴校园（FastAPI + Vue 3 + MySQL，含本地 Ollama 智能体）。
 - git 命令必须带 `-c safe.directory="D:/DjangoProject/学生管理系统（实验）"`。
 - 禁止提交：`.omo/`、`.superpawers/`、`技术设计文档.docx`（`.env` 已被 gitignore）。
-- 后端测试：`.venv\Scripts\python.exe -m pytest`（当前基准 108/108 通过）。
+- 后端测试：`.venv\Scripts\python.exe -m pytest tests -q -p no:cacheprovider`（当前基准 160/160 通过）。
 - 前端构建：在 `student-management-frontend/` 下执行 `npm run build`。
 - 推送网络受限："Connection was reset" 但输出含 ref 更新行 = 实际成功，用 `git status -sb` 核实。
 - 中文输出在 PowerShell 控制台显示乱码是编码问题；写脚本文件用 UTF-8。

@@ -6,7 +6,7 @@ FastAPI + Vue 3 全栈智慧校园平台，内置本地 AI 智能体（首页即
 
 | 层级 | 技术 |
 |------|------|
-| 后端框架 | FastAPI 0.136 + Python 3.13 |
+| 后端框架 | FastAPI 0.136 + Python 3.13（本机）/ 3.11（Docker 镜像） |
 | ORM | SQLAlchemy 2.0 (async) |
 | 数据库 | MySQL 8.x |
 | 前端框架 | Vue 3 (Composition API) |
@@ -18,10 +18,10 @@ FastAPI + Vue 3 全栈智慧校园平台，内置本地 AI 智能体（首页即
 
 ```
 ├── app/                    # FastAPI 应用
-│   ├── api/                # API 路由 (14 个)
-│   ├── models/             # SQLAlchemy (20 张表)
-│   ├── schemas/            # Pydantic 模型 (10 个)
-│   ├── services/           # 业务逻辑层 (6 个)
+│   ├── api/                # API 路由 (16 个)
+│   ├── models/             # SQLAlchemy (26 张表)
+│   ├── schemas/            # Pydantic 模型 (12 个)
+│   ├── services/           # 业务逻辑层 (7 个)
 │   │   └── agent/          # 智能体：意图识别 / 动作执行 / 会话记忆 / LLM 客户端
 │   ├── utils/              # 工具 (绩点/周次/节次)
 │   ├── config.py           # 配置
@@ -30,10 +30,10 @@ FastAPI + Vue 3 全栈智慧校园平台，内置本地 AI 智能体（首页即
 │   └── main.py             # 入口 (含 WS + 事件总线)
 ├── student-management-frontend/  # Vue 3 前端
 │   └── src/
-│   ├── api/            # Axios (10 个)
-│   ├── views/          # 页面 (15 个)
-│       ├── components/     # 组件 (3 个)
-│       ├── stores/         # Pinia (3 个)
+│   ├── api/            # Axios (13 个)
+│   ├── views/          # 页面 (18 个)
+│       ├── components/     # 组件 (4 个)
+│       ├── stores/         # Pinia (4 个)
 │       ├── router/         # 路由 + 导航守卫
 │       └── utils/          # 工具 (4 个)
 ├── requirements.txt        # Python 依赖
@@ -44,6 +44,18 @@ FastAPI + Vue 3 全栈智慧校园平台，内置本地 AI 智能体（首页即
 
 ## Docker 部署（推荐）
 
+### 0. 设置 JWT 密钥（必须）
+
+后端采用 fail-closed 策略：未注入 `SECRET_KEY` 时容器拒绝启动。
+
+```bash
+# Windows PowerShell（每次启动前设置，或写入用户环境变量）
+$env:SECRET_KEY = (python -c "import secrets; print(secrets.token_urlsafe(48))")
+
+# Linux / macOS
+export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))")
+```
+
 ### 1. 启动所有服务
 
 ```bash
@@ -51,6 +63,8 @@ docker compose up -d
 ```
 
 首次构建需 3-5 分钟（安装 Python/Node 依赖）。
+
+> 智能体说明：Ollama 运行在宿主机（非容器），后端容器通过 `host.docker.internal:11434` 访问（已在 `.env.docker` 内置配置，依赖 compose 的 `host-gateway`）。若宿主机未启动 Ollama，智能体自动降级为规则兜底。
 
 ### 2. 初始化种子数据
 
@@ -238,7 +252,7 @@ cd student-management-frontend && npm run dev
 
 ```
 ========================================
-  Results: 28 passed, 0 failed
+  Results: 28/29 passed（1 项设计预期差异）
 ========================================
 ```
 
@@ -247,7 +261,7 @@ cd student-management-frontend && npm run dev
 ## 自动化测试
 
 ```bash
-python -m pytest -q    # 当前 119 passed
+python -m pytest tests -q -p no:cacheprovider    # 当前 160 passed
 ```
 
 覆盖：认证、选课、课表、成绩、请假、审批、教室、报修、通知、培养方案、毕业审核、考试、管理，以及智能体模块（意图识别 / 动作执行 / 会话记忆 / 二次确认 / 种子数据 / 多意图降级等）。

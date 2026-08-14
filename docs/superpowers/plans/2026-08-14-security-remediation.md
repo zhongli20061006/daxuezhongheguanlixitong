@@ -22,8 +22,8 @@
 - 清理权限异常的 pytest-cache-files-* 目录
 
 ## 阶段 5：文档真相修复
-- 测试数 154、结构数字 16 路由/21 模型文件/12 schema；设计方向索引更新
-- DEBUG_LOG 版本矛盾、E2E 数字更正；docker-init 补 agent01；README 补 Docker-Ollama 说明
+- 测试数 160、结构数字 16 路由/26 张表/12 schema；设计方向索引更新
+- DEBUG_LOG 版本矛盾、E2E 数字更正；docker-init 补 agent01；README 补 Docker-Ollama 与 SECRET_KEY 说明
 
 ## 验收与停止条件
 - 每阶段：后端 pytest 全绿 + 前端构建通过 + 本地 Git 提交（不推送）
