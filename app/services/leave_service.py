@@ -99,6 +99,8 @@ class LeaveService:
         leave = leave_result.scalar_one_or_none()
         if not leave:
             raise ValueError("请假申请不存在")
+        if result not in ("通过", "驳回"):
+            raise ValueError("审批结果只能是 通过 或 驳回")
         if leave.status in (LeaveStatus.APPROVED.value, LeaveStatus.REJECTED.value, LeaveStatus.CANCELLED.value):
             raise ValueError(f"该申请已{leave.status}，不能重复审批")
 

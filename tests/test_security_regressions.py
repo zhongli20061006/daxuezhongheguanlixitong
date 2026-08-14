@@ -178,3 +178,78 @@ async def test_drop_re_enroll_drop_roundtrip(client, db, test_engine):
         select(CourseCapacity.enrolled).where(CourseCapacity.schedule_id == 1)
     )).scalar_one()
     assert enrolled == 0
+
+
+@pytest.mark.asyncio
+async def test_classroom_reservation_duplicate_conflict(client, db, test_engine):
+    """B3：同一教室同时段重复预约必须 409（唯一约束生效）。"""
+    from app.main import app
+
+    await _cleanup(test_engine)
+    db.add(Classroom(id=1, name="D101", capacity=60, building="D", has_projector=False))
+    await db.commit()
+
+    _set_role(app, "S2024001", "student", "S2024001")
+    try:
+        r1 = await client.post("/classrooms/reserve", params={
+            "classroom_id": 1, "week": 1, "day_of_week": 1,
+            "period": "1-2", "reason": "自习",
+        })
+        assert r1.status_code == 200, r1.text
+        r2 = await client.post("/classrooms/reserve", params={
+            "classroom_id": 1, "week": 1, "day_of_week": 1,
+            "period": "1-2", "reason": "自习",
+        })
+        assert r2.status_code == 409, r2.text
+        assert "已被其他人预约" in r2.json()["detail"]
+    finally:
+        _clear_role(app)
+
+
+@pytest.mark.asyncio
+async def test_approval_record_duplicate_level_constraint(db, test_engine):
+    """B4：同一请假单同级别重复审批记录被唯一约束拒绝。"""
+    from sqlalchemy.exc import IntegrityError
+
+    await _cleanup(test_engine)
+    db.add(ApprovalRecord(
+        leave_id=1, approver_id="T10001", approver_role="advisor",
+        level=1, result="通过", comment="",
+    ))
+    await db.commit()
+    db.add(ApprovalRecord(
+        leave_id=1, approver_id="T10001", approver_role="advisor",
+        level=1, result="通过", comment="",
+    ))
+    with pytest.raises(IntegrityError):
+        await db.commit()
+    await db.rollback()
+
+
+@pytest.mark.asyncio
+async def test_approve_invalid_result_rejected(client, db, test_engine):
+    """B4：非法审批结果必须 422（枚举校验）。"""
+    from app.main import app
+
+    await _cleanup(test_engine)
+    db.add_all([
+        StudentClass(id=1, name="一班", major="计算机", grade=2024, advisor_id=1),
+        Teacher(id=1, name="一班辅导员", job_number="T10001", department="计算机", is_college_admin=False),
+        Student(id="S2024001", name="一班学生", class_id=1),
+        LeaveApplication(
+            student_id="S2024001",
+            start_date=date.today() + timedelta(days=1),
+            end_date=date.today() + timedelta(days=1),
+            total_days=1, reason="感冒", status="审批中(辅导员)",
+        ),
+    ])
+    await db.commit()
+
+    _set_role(app, "T10001", "teacher", "T10001")
+    try:
+        r = await client.post("/advisor/approve", json={
+            "leave_id": 1, "result": "随便", "comment": "",
+        })
+        assert r.status_code == 422, r.text
+    finally:
+        _clear_role(app)

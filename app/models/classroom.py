@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from sqlalchemy import String, Integer, Boolean, DateTime, func
+from sqlalchemy import String, Integer, Boolean, DateTime, func, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -37,4 +37,12 @@ class ClassroomReservation(Base):
     status: Mapped[str] = mapped_column(String(10), nullable=False, default="已预约", comment="已预约/已取消")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False, comment="创建时间"
+    )
+
+    # 同一教室+周次+星期+节次的唯一约束：防止并发预约竞态（TOCTOU 防护）
+    __table_args__ = (
+        UniqueConstraint(
+            "classroom_id", "week", "day_of_week", "period",
+            name="uk_room_time",
+        ),
     )

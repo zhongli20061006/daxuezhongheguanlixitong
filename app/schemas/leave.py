@@ -10,7 +10,7 @@ class LeaveApplyRequest(BaseModel):
 
 class ApprovalRequest(BaseModel):
     leave_id: int = Field(..., description="请假申请ID")
-    result: str = Field(..., description="审批结果：通过/驳回")
+    result: str = Field(..., pattern="^(通过|驳回)$", description="审批结果：通过/驳回")
     comment: Optional[str] = Field(None, description="审批意见")
 
 
