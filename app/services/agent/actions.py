@@ -835,7 +835,11 @@ class ActionExecutor:
         course = (course or "").strip()
         if course.isdigit():
             sid = int(course)
-            row = (await db.execute(select(Schedule.id).where(Schedule.id == sid))).scalar_one_or_none()
+            stu = (await db.execute(select(Student).where(Student.id == student_id))).scalar_one_or_none()
+            class_filter = stu.class_id if (stu and stu.class_id) else -1
+            row = (await db.execute(
+                select(Schedule.id).where(Schedule.id == sid, Schedule.class_id == class_filter)
+            )).scalar_one_or_none()
             return (sid, "") if row else (None, "课表记录不存在")
         stu = (await db.execute(select(Student).where(Student.id == student_id))).scalar_one_or_none()
         if not stu or not stu.class_id:

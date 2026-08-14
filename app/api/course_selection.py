@@ -7,6 +7,7 @@ GET  /selection/my-courses  — 我的课程（学生/教师双视角）
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -104,6 +105,19 @@ async def enroll(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="课表记录不存在")
     schedule: Schedule = row[0]
     subject: Subject = row[1]
+
+    # === Step 3.5: 校验课程归属班级（防止跨班选课） ===
+    stu_result = await db.execute(
+        select(Student).where(Student.id == student_id)
+    )
+    student = stu_result.scalar_one_or_none()
+    if not student or not student.class_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="学生信息不存在")
+    if schedule.class_id != student.class_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="该课程不属于您所在班级，无法选课",
+        )
 
     # === Step 4: 检查选课时间窗口 ===
     now = datetime.now()
@@ -232,17 +246,34 @@ async def enroll(
                 status_code=status.HTTP_409_CONFLICT, detail="课程已满"
             )
 
-        # 插入选课记录
-        db.add(CourseSelection(
-            student_id=student_id,
-            schedule_id=schedule_id,
-            status=1,
-        ))
+        # 写入选课记录：优先复用已退记录（UPDATE status=0→1），无则 INSERT
+        # 避免"退课→重选→再退课"产生第二条 status=0 记录撞唯一键
+        now_dt = datetime.now()
+        reupd_result = await db.execute(
+            text("""
+                /* 复用已退选记录：状态从 0 恢复为 1 */
+                UPDATE course_selection
+                SET status = 1, cancel_time = NULL, select_time = :now
+                WHERE student_id = :sid AND schedule_id = :schid AND status = 0
+            """),
+            {"sid": student_id, "schid": schedule_id, "now": now_dt},
+        )
+        if reupd_result.rowcount == 0:
+            db.add(CourseSelection(
+                student_id=student_id,
+                schedule_id=schedule_id,
+                status=1,
+            ))
         await db.commit()
 
     except HTTPException:
         await db.rollback()
         raise
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="请勿重复选课"
+        )
     except Exception:
         await db.rollback()
         raise HTTPException(

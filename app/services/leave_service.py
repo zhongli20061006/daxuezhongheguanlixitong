@@ -13,6 +13,7 @@ from app.models.approval_record import ApprovalRecord
 from app.models.approval_config import ApprovalConfig
 from app.models.student_class import StudentClass
 from app.models.student import Student
+from app.models.teacher import Teacher
 from app.services.event_bus import Events, event_bus
 from app.services.notification_service import notification_service as ns
 
@@ -112,6 +113,22 @@ class LeaveService:
                 raise ValueError("当前审批阶段需要学院管理员审批")
         else:
             level = 1
+
+        # 水平越权防护：辅导员只能审批本班学生的请假（管理员不受限）
+        if level == 1 and approver_role == "advisor":
+            teacher = (await db.execute(
+                select(Teacher).where(Teacher.job_number == approver_id)
+            )).scalar_one_or_none()
+            stu = (await db.execute(
+                select(Student).where(Student.id == leave.student_id)
+            )).scalar_one_or_none()
+            cls = None
+            if stu and stu.class_id:
+                cls = (await db.execute(
+                    select(StudentClass).where(StudentClass.id == stu.class_id)
+                )).scalar_one_or_none()
+            if not teacher or not cls or cls.advisor_id != teacher.id:
+                raise ValueError("您不是该学生所在班级的辅导员，无权审批")
 
         record = ApprovalRecord(
             leave_id=leave_id,
