@@ -4,7 +4,7 @@ docker compose exec backend python -m app.init_data
 if ($LASTEXITCODE -eq 0) {
     Write-Host "初始化完成！" -ForegroundColor Green
     Write-Host ""
-    Write-Host "测试账号（密码均为 test123456）："
+    Write-Host "测试账号（密码见上方初始化输出）："
     Write-Host "  管理员  : admin01"
     Write-Host "  教师    : T10001"
     Write-Host "  学生    : S2024001"

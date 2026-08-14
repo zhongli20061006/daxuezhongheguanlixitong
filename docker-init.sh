@@ -8,7 +8,7 @@ docker compose exec backend python -m app.init_data
 echo ""
 echo "初始化完成！"
 echo ""
-echo "测试账号（密码均为 test123456）："
+echo "测试账号（密码见上方初始化输出）："
 echo "  管理员  : admin01"
 echo "  教师    : T10001"
 echo "  学生    : S2024001"
