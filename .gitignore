@@ -39,6 +39,9 @@ Thumbs.db
 /backup_*.sql
 /*.docx
 
+# 本地命令备忘（曾误提交，含个人密码历史，不再追踪）
+/命令
+
 # pytest 缓存与残留目录
 .pytest_cache/
 pytest-cache-files-*/
