@@ -88,12 +88,24 @@ class NotificationService:
             })
         return notifications
 
-    async def mark_as_read(self, db: AsyncSession, notification_id: int):
-        await db.execute(
+    async def mark_as_read(self, db: AsyncSession, notification_id: int, user_id: str, role: str) -> bool:
+        """标记该通知中当前用户可见范围内（定向本人/本角色/全局）的行为已读。
+
+        返回是否命中了可见记录；未命中说明该通知不属于当前用户可见范围。
+        """
+        result = await db.execute(
             update(NotificationUser)
-            .where(NotificationUser.notification_id == notification_id)
+            .where(
+                NotificationUser.notification_id == notification_id,
+                or_(
+                    NotificationUser.recipient_id == user_id,
+                    NotificationUser.recipient_role == role,
+                    and_(NotificationUser.recipient_id.is_(None), NotificationUser.recipient_role.is_(None)),
+                )
+            )
             .values(is_read=True)
         )
+        return result.rowcount > 0
 
     async def mark_all_as_read(self, db: AsyncSession, user_id: str, role: str) -> int:
         """批量标记该用户所有未读通知为已读，返回影响行数"""
@@ -148,8 +160,62 @@ class NotificationService:
                 logger.debug("Deleted orphan notification #%s", notification_id)
         return deleted > 0
 
-    async def cleanup_read(self, db: AsyncSession, days: int = 7) -> int:
-        """清理已读通知：days=0 清除全部已读，days>0 清除 N 天前的已读通知"""
+    async def cleanup_read(
+        self, db: AsyncSession, days: int = 7, user_id: str | None = None, is_admin: bool = False
+    ) -> int:
+        """清理已读通知。
+
+        - is_admin=True：保留全局语义（清理所有用户的已读记录及孤儿通知）
+        - 普通用户：仅清理自己名下（recipient_id == user_id）的已读定向通知，
+          不触碰其他用户的记录以及共享的角色级/全局行。
+        """
+        if is_admin:
+            return await self._cleanup_read_global(db, days)
+
+        # 普通用户：自己的已读定向通知 id
+        own_ids = select(NotificationUser.notification_id).where(
+            NotificationUser.recipient_id == user_id,
+            NotificationUser.is_read == True,
+        )
+        if days > 0:
+            threshold = datetime.now() - timedelta(days=days)
+            result = await db.execute(
+                select(Notification.id).where(
+                    Notification.id.in_(own_ids),
+                    Notification.created_at < threshold,
+                )
+            )
+        else:
+            result = await db.execute(own_ids)
+        old_ids = [row[0] for row in result.all()]
+        if not old_ids:
+            return 0
+
+        # 删除该用户自己的已读记录
+        nu_result = await db.execute(
+            delete(NotificationUser).where(
+                NotificationUser.notification_id.in_(old_ids),
+                NotificationUser.recipient_id == user_id,
+                NotificationUser.is_read == True,
+            )
+        )
+        deleted = nu_result.rowcount
+
+        # 清理孤立的 Notification（不再被任何 NotificationUser 引用）
+        orphan_result = await db.execute(
+            delete(Notification).where(
+                Notification.id.in_(old_ids),
+                ~Notification.id.in_(
+                    select(NotificationUser.notification_id).where(NotificationUser.notification_id.in_(old_ids))
+                )
+            )
+        )
+        orph = orphan_result.rowcount
+        logger.info("Cleanup(user=%s): deleted %s read notification_user records, %s orphan notifications", user_id, deleted, orph)
+        return deleted + orph
+
+    async def _cleanup_read_global(self, db: AsyncSession, days: int = 7) -> int:
+        """全局清理已读通知（仅管理员使用）。"""
         if days > 0:
             threshold = datetime.now() - timedelta(days=days)
             result = await db.execute(
@@ -184,7 +250,7 @@ class NotificationService:
             )
         )
         orph = orphan_result.rowcount
-        logger.info("Cleanup: deleted %s read notification_user records, %s orphan notifications", deleted, orph)
+        logger.info("Cleanup(global): deleted %s read notification_user records, %s orphan notifications", deleted, orph)
         return deleted + orph
 
 

@@ -405,15 +405,27 @@ async def student_scores(
     role = current_user["role"]
     if role == "student" and current_user["username"] != student_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只能查看自己的成绩")
+    if role == "staff":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看成绩")
 
     # 查询成绩 + JOIN 科目/课表信息，按课程名排序
-    result = await db.execute(
+    stmt = (
         select(Score, Subject)
         .join(Schedule, Score.schedule_id == Schedule.id)
         .join(Subject, Schedule.subject_id == Subject.id)
         .where(Score.student_id == student_id)
-        .order_by(Subject.name, Score.score_type)
     )
+    # 教师只能查看本人授课课程中该学生的成绩
+    if role == "teacher":
+        teacher_id = await _get_teacher_id(db, current_user)
+        schedule_ids = (await db.execute(
+            select(Schedule.id).where(Schedule.teacher_id == teacher_id)
+        )).scalars().all()
+        if not schedule_ids:
+            return StudentScoresResponse(student_id=student_id, scores=[])
+        stmt = stmt.where(Score.schedule_id.in_(schedule_ids))
+    stmt = stmt.order_by(Subject.name, Score.score_type)
+    result = await db.execute(stmt)
     scores = [
         ScoreItem(
             id=sc.id,

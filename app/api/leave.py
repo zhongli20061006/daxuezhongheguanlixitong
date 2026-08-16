@@ -13,6 +13,8 @@ from app.database import get_db
 from app.deps import get_current_user, require_role
 from app.models.leave_application import LeaveApplication
 from app.models.student import Student
+from app.models.student_class import StudentClass
+from app.models.teacher import Teacher
 from app.schemas.leave import (
     LeaveApplyRequest, LeaveItem, LeaveListResponse,
     ApprovalRecordItem, LeaveDetailResponse,
@@ -81,6 +83,29 @@ async def leave_detail(
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="请假申请不存在")
     l, stu = row
+
+    # 数据归属校验：学生仅本人、辅导员仅本班、学院管理员/admin 全量、其余角色无权限
+    role = current_user["role"]
+    if role == "student" and current_user["username"] != l.student_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该请假申请")
+    if role == "teacher":
+        teacher = (await db.execute(
+            select(Teacher).where(Teacher.job_number == current_user["role_id"])
+        )).scalar_one_or_none()
+        if not teacher:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该请假申请")
+        if not teacher.is_college_admin:
+            # 辅导员只能查看本班学生的请假
+            cls = None
+            if stu.class_id:
+                cls = (await db.execute(
+                    select(StudentClass).where(StudentClass.id == stu.class_id)
+                )).scalar_one_or_none()
+            if not cls or cls.advisor_id != teacher.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该请假申请")
+    elif role not in ("admin", "student"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该请假申请")
+
     records = await leave_service.get_approval_history(db, leave_id)
     return LeaveDetailResponse(
         leave=LeaveItem(

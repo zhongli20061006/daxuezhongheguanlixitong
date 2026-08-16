@@ -48,7 +48,11 @@ async def mark_read(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await notification_service.mark_as_read(db, notification_id)
+    ok = await notification_service.mark_as_read(
+        db, notification_id, current_user["username"], current_user["role"]
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="通知不存在或无权操作")
     await db.commit()
     return {"message": "已标记为已读"}
 
@@ -86,7 +90,10 @@ async def cleanup_read(
     db: AsyncSession = Depends(get_db),
     days: int = Query(7, ge=0, le=90, description="清理多少天前的已读通知，0=全部"),
 ):
-    """清理指定天数前的所有已读通知（全局，管理员操作推荐加上角色限制）"""
-    count = await notification_service.cleanup_read(db, days)
+    """清理已读通知：普通用户仅清理自己的已读记录，admin 保留全局清理。"""
+    is_admin = current_user["role"] == "admin"
+    count = await notification_service.cleanup_read(
+        db, days, current_user["username"], is_admin
+    )
     await db.commit()
     return {"message": f"已清理 {count} 条记录", "deleted": count}
